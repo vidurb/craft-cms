@@ -1,5 +1,6 @@
 @charset "UTF-8";
-@import "../../../../../node_modules/craftcms-sass/mixins";
+@import "~graphiql/graphiql";
+@import "~craftcms-sass/mixins";
 
 body,
 #graphiql {
