@@ -467,7 +467,11 @@ class Plugins extends Component
             return true;
         }
 
+        // Temporarily allow changes to the project config even if it's supposed to be read only
         $projectConfig = Craft::$app->getProjectConfig();
+        $readOnly = $projectConfig->readOnly;
+        $projectConfig->readOnly = false;
+
         $configKey = self::CONFIG_PLUGINS_KEY . '.' . $handle;
 
         $plugin = $this->createPlugin($handle);
@@ -505,7 +509,7 @@ class Plugins extends Component
             $info['installDate'] = DateTimeHelper::toDateTime($info['installDate']);
             $info['id'] = $db->getLastInsertID(Table::PLUGINS);
 
-            $this->_setPluginMigrator($plugin, $info['id']);
+            $this->_setPluginMigrator($plugin);
 
             if ($plugin->install() === false) {
                 $transaction->rollBack();
@@ -547,6 +551,8 @@ class Plugins extends Component
             ]));
         }
 
+        $projectConfig->readOnly = $readOnly;
+
         return true;
     }
 
@@ -572,6 +578,10 @@ class Plugins extends Component
             // It's already uninstalled
             return true;
         }
+        // Temporarily allow changes to the project config even if it's supposed to be read only
+        $projectConfig = Craft::$app->getProjectConfig();
+        $readOnly = $projectConfig->readOnly;
+        $projectConfig->readOnly = false;
 
         if (($plugin = $this->getPlugin($handle)) === null) {
             throw new InvalidPluginException($handle);
@@ -600,6 +610,10 @@ class Plugins extends Component
                 'id' => $id,
             ]);
 
+            Db::delete(Table::MIGRATIONS, [
+                'track' => "plugin:$handle",
+            ]);
+
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollBack();
@@ -608,9 +622,8 @@ class Plugins extends Component
         }
 
         // Remove the plugin from the project config
-        $projectConfig = Craft::$app->getProjectConfig();
         if ($projectConfig->get(self::CONFIG_PLUGINS_KEY . '.' . $handle, true)) {
-            Craft::$app->getProjectConfig()->remove(self::CONFIG_PLUGINS_KEY . '.' . $handle, "Uninstall the “{$handle}” plugin");
+            $projectConfig->remove(self::CONFIG_PLUGINS_KEY . '.' . $handle, "Uninstall the “{$handle}” plugin");
         }
 
         $this->_unregisterPlugin($plugin);
@@ -622,6 +635,8 @@ class Plugins extends Component
                 'plugin' => $plugin
             ]));
         }
+
+        $projectConfig->readOnly = $readOnly;
 
         return true;
     }
@@ -891,7 +906,7 @@ class Plugins extends Component
 
         // Create the plugin
         $plugin = Craft::createObject($config, [$handle, Craft::$app]);
-        $this->_setPluginMigrator($plugin, $info['id'] ?? null);
+        $this->_setPluginMigrator($plugin);
         return $plugin;
     }
 
@@ -1117,10 +1132,6 @@ class Plugins extends Component
      */
     public function setPluginLicenseKey(string $handle, string $licenseKey = null): bool
     {
-        if (($plugin = $this->getPlugin($handle)) === null) {
-            throw new InvalidPluginException($handle);
-        }
-
         // Validate the license key
         $normalizedLicenseKey = $this->normalizePluginLicenseKey($licenseKey);
 
@@ -1280,16 +1291,14 @@ class Plugins extends Component
      * Sets the 'migrator' component on a plugin.
      *
      * @param PluginInterface $plugin The plugin
-     * @param int|null $id The plugin’s ID
      */
-    private function _setPluginMigrator(PluginInterface $plugin, int $id = null)
+    private function _setPluginMigrator(PluginInterface $plugin)
     {
         $ref = new \ReflectionClass($plugin);
         $ns = $ref->getNamespaceName();
         $plugin->set('migrator', [
             'class' => MigrationManager::class,
-            'type' => MigrationManager::TYPE_PLUGIN,
-            'pluginId' => $id,
+            'track' => "plugin:$plugin->id",
             'migrationNamespace' => ($ns ? $ns . '\\' : '') . 'migrations',
             'migrationPath' => $plugin->getBasePath() . DIRECTORY_SEPARATOR . 'migrations',
         ]);

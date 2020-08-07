@@ -12,7 +12,9 @@ use craft\errors\GqlException;
 use craft\gql\base\Directive;
 use craft\gql\GqlEntityRegistry;
 use craft\models\GqlSchema;
+use GraphQL\Type\Definition\NonNull;
 use GraphQL\Type\Definition\ResolveInfo;
+use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Definition\UnionType;
 
 /**
@@ -119,6 +121,12 @@ class Gql
     public static function canMutateEntries(): bool
     {
         $allowedEntities = self::extractAllowedEntitiesFromSchema('edit');
+
+        // Singles don't have the `edit` action.
+        if (!isset($allowedEntities['entrytypes'])) {
+            $allowedEntities = self::extractAllowedEntitiesFromSchema('save');
+        }
+
         return isset($allowedEntities['entrytypes']);
     }
 
@@ -248,6 +256,27 @@ class Gql
         ]));
 
         return $unionType;
+    }
+
+    /**
+     * Wrap a GQL object type in a NonNull type.
+     *
+     * @param $type
+     * @return mixed
+     */
+    public static function wrapInNonNull($type)
+    {
+        if ($type instanceof NonNull) {
+            return $type;
+        }
+
+        if (is_array($type)) {
+            $type['type'] = Type::nonNull($type['type']);
+        } else {
+            $type = Type::nonNull($type);
+        }
+
+        return $type;
     }
 
     /**

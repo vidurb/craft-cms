@@ -707,10 +707,13 @@ Craft.DraftEditor = Garnish.Base.extend(
                         var $saveBtnContainer = $('#save-btn-container');
                         if ($saveBtnContainer.length) {
                             $saveBtnContainer.replaceWith($('<input/>', {
-                                type: 'submit',
-                                'class': 'btn submit',
-                                value: Craft.t('app', 'Publish changes')
-                            }));
+                                type: 'button',
+                                'class': 'btn secondary formsubmit',
+                                value: Craft.t('app', 'Publish changes'),
+                                data: {
+                                    action: this.settings.applyDraftAction,
+                                },
+                            }).formsubmit());
                         }
 
                         // Remove the "Save as a Draft" button
@@ -784,7 +787,11 @@ Craft.DraftEditor = Garnish.Base.extend(
                         this.checkMetaValues();
                     }
 
-                    $.extend(this.duplicatedElements, response.duplicatedElements);
+                    for (let oldId in response.duplicatedElements) {
+                        if (oldId != this.settings.sourceId && response.duplicatedElements.hasOwnProperty(oldId)) {
+                            this.duplicatedElements[oldId] = response.duplicatedElements[oldId];
+                        }
+                    }
 
                     resolve();
                 }.bind(this));
@@ -809,20 +816,19 @@ Craft.DraftEditor = Garnish.Base.extend(
         },
 
         swapDuplicatedElementIds: function(data) {
-            for (var oldId in this.duplicatedElements) {
-                if (this.duplicatedElements.hasOwnProperty(oldId)) {
-                    data = data
-                        .replace(
-                            new RegExp(Craft.escapeRegex(encodeURIComponent('][' + oldId + ']')), 'g'),
-                            '][' + this.duplicatedElements[oldId] + ']'
-                        )
-                        .replace(
-                            new RegExp('=' + oldId + '\\b', 'g'),
-                            '=' + this.duplicatedElements[oldId]
-                        );
-                }
+            let idsRE = Object.keys(this.duplicatedElements).join('|');
+            if (idsRE === '') {
+                return data;
             }
-            return data;
+            let lb = encodeURIComponent('[');
+            let rb = encodeURIComponent(']');
+            return data
+                .replace(new RegExp(`(&fields${lb}[^=]+${rb}${lb})(${idsRE})(${rb})`, 'g'), (m, pre, id, post) => {
+                    return pre + this.duplicatedElements[id] + post;
+                })
+                .replace(new RegExp(`(&fields${lb}[^=]+=)(${idsRE})\\b`, 'g'), (m, pre, id) => {
+                    return pre + this.duplicatedElements[id];
+                });
         },
 
         getDeltaNames: function() {
@@ -852,6 +858,7 @@ Craft.DraftEditor = Garnish.Base.extend(
 
         afterUpdate: function(data) {
             Craft.cp.$primaryForm.data('initialSerializedValue', data);
+            Craft.initialDeltaValues = {};
             this.statusIcons()
                 .removeClass('hidden')
                 .addClass('checkmark-icon')
@@ -999,6 +1006,12 @@ Craft.DraftEditor = Garnish.Base.extend(
                 return;
             }
 
+            // If we're editing a (saved) draft and the shortcut was used, just force-check the form immediately
+            if (ev.saveShortcut && !this.settings.isUnsavedDraft && this.settings.draftId) {
+                this.checkForm(true);
+                return;
+            }
+
             // If we're editing a draft, this isn't a custom trigger, and the user isn't allowed to update the source,
             // then ignore the submission
             if (!ev.customTrigger && !this.settings.isUnsavedDraft && this.settings.draftId && !this.settings.canUpdateSource) {
@@ -1018,7 +1031,10 @@ Craft.DraftEditor = Garnish.Base.extend(
             var $form = Craft.createForm(data);
 
             if (this.settings.draftId) {
-                if (!ev.customTrigger || !ev.customTrigger.data('action')) {
+                if (
+                    this.settings.isUnsavedDraft &&
+                    (!ev.customTrigger || !ev.customTrigger.data('action'))
+                ) {
                     $('<input/>', {
                         type: 'hidden',
                         name: 'action',

@@ -16,6 +16,7 @@ use craft\db\Query;
 use craft\db\Table;
 use craft\helpers\Db;
 use craft\helpers\Json;
+use craft\models\FieldLayout;
 use yii\base\Component;
 
 /**
@@ -113,11 +114,14 @@ class ElementIndexes extends Component
             // Prune out any settings for sources that don't exist
             $indexedBaseSources = $this->_indexSourcesByKey($baseSources);
 
-            foreach ($settings['sources'] as $key => $source) {
+            foreach ($settings['sources'] as $key => &$source) {
                 if (!isset($indexedBaseSources[$key])) {
                     unset($settings['sources'][$key]);
+                } else if (empty($source['headerColHeading'])) {
+                    unset($source['headerColHeading']);
                 }
             }
+            unset($source);
         }
 
         $success = (bool)Db::upsert(Table::ELEMENTINDEXSETTINGS, [
@@ -232,18 +236,24 @@ class ElementIndexes extends Component
             $this->getSourceTableAttributes($elementType, $sourceKey)
         );
 
+        // Get the source settings
+        $settings = $this->getSettings($elementType);
+
         $attributes = [];
 
         // Start with the first available attribute, no matter what
         $firstKey = null;
         foreach ($availableAttributes as $key => $attributeInfo) {
             $firstKey = $key;
+            if (isset($settings['sources'][$sourceKey]['headerColHeading'])) {
+                $attributeInfo['defaultLabel'] = $attributeInfo['label'];
+                $attributeInfo['label'] = $settings['sources'][$sourceKey]['headerColHeading'];
+            }
             $attributes[] = [$key, $attributeInfo];
             break;
         }
 
         // Is there a custom attributes list?
-        $settings = $this->getSettings($elementType);
         if (isset($settings['sources'][$sourceKey]['tableAttributes'])) {
             $attributeKeys = $settings['sources'][$sourceKey]['tableAttributes'];
         } else {
@@ -261,6 +271,29 @@ class ElementIndexes extends Component
     }
 
     /**
+     * @var array
+     * @see getFieldLayoutsForSource()
+     */
+    private $_fieldLayouts;
+
+    /**
+     * Returns all the field layouts available for the given element source.
+     *
+     * @param string $elementType
+     * @param string $sourceKey
+     * @return FieldLayout[]
+     * @since 3.5.0
+     */
+    public function getFieldLayoutsForSource(string $elementType, string $sourceKey): array
+    {
+        if (!isset($this->_fieldLayouts[$elementType][$sourceKey])) {
+            /** @var string|ElementInterface $elementType */
+            $this->_fieldLayouts[$elementType][$sourceKey] = $elementType::fieldLayouts($sourceKey);
+        }
+        return $this->_fieldLayouts[$elementType][$sourceKey];
+    }
+
+    /**
      * Returns additional sort options that should be available for a given element source.
      *
      * @param string $elementType The element type class
@@ -271,8 +304,7 @@ class ElementIndexes extends Component
     public function getSourceSortOptions(string $elementType, string $sourceKey): \Generator
     {
         $processedFieldIds = [];
-        /** @var string|ElementInterface $elementType */
-        foreach ($elementType::fieldLayouts($sourceKey) as $fieldLayout) {
+        foreach ($this->getFieldLayoutsForSource($elementType, $sourceKey) as $fieldLayout) {
             foreach ($fieldLayout->getFields() as $field) {
                 if (
                     $field instanceof SortableFieldInterface &&
@@ -301,8 +333,7 @@ class ElementIndexes extends Component
     {
         $processedFieldIds = [];
         $attributes = [];
-        /** @var string|ElementInterface $elementType */
-        foreach ($elementType::fieldLayouts($sourceKey) as $fieldLayout) {
+        foreach ($this->getFieldLayoutsForSource($elementType, $sourceKey) as $fieldLayout) {
             foreach ($fieldLayout->getFields() as $field) {
                 if (
                     $field instanceof PreviewableFieldInterface &&

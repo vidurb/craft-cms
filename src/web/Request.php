@@ -37,6 +37,9 @@ use yii\web\NotFoundHttpException;
  * @property bool $isLivePreview Whether this is a Live Preview request.
  * @property string $queryStringWithoutPath The request’s query string, without the path parameter.
  * @property-read bool $isPreview Whether this is an element preview request.
+ * @property-read string|null $mimeType The MIME type of the request, extracted from the request’s content type
+ * @property-read bool $isGraphql Whether the request’s MIME type is `application/graphql`
+ * @property-read bool $isJson Whether the request’s MIME type is `application/json`
  * @author Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @since 3.0.0
  */
@@ -365,8 +368,8 @@ class Request extends \yii\web\Request
      * Returns the segments of the requested path.
      *
      * ::: tip
-     * Note that the segments will not include the [control panel trigger](config:cpTrigger)
-     * if it’s a control panel request, or the [page trigger](config:pageTrigger)
+     * Note that the segments will not include the [control panel trigger](config3:cpTrigger)
+     * if it’s a control panel request, or the [page trigger](config3:pageTrigger)
      * or page number if it’s a paginated request.
      * :::
      *
@@ -387,7 +390,7 @@ class Request extends \yii\web\Request
             return $this->_segments;
         }
 
-        return $this->_segments = explode('/', $this->_path);
+        return $this->_segments = $this->_segments($this->_path);
     }
 
     /**
@@ -446,7 +449,7 @@ class Request extends \yii\web\Request
     /**
      * Returns the token submitted with the request, if there is one.
      *
-     * Tokens must be sent either as a query string param named after the <config:tokenParam> config setting (`token` by
+     * Tokens must be sent either as a query string param named after the <config3:tokenParam> config setting (`token` by
      * default), or an `X-Craft-Token` HTTP header on the request.
      *
      * @return string|null The token, or `null` if there isn’t one.
@@ -474,7 +477,7 @@ class Request extends \yii\web\Request
      * Returns whether the control panel was requested.
      *
      * The result depends on whether the first segment in the URI matches the
-     * [control panel trigger](config:cpTrigger).
+     * [control panel trigger](config3:cpTrigger).
      *
      * @return bool Whether the current request should be routed to the control panel.
      */
@@ -511,7 +514,7 @@ class Request extends \yii\web\Request
      *
      * There are several ways that this method could return `true`:
      *
-     * - If the first segment in the Craft path matches the [action trigger](config:actionTrigger)
+     * - If the first segment in the Craft path matches the [action trigger](config3:actionTrigger)
      * - If there is an `action` param in either the POST data or query string
      * - If the Craft path matches the Login path, the Logout path, or the Set Password path
      *
@@ -614,6 +617,48 @@ class Request extends \yii\web\Request
     public function setIsLivePreview(bool $isLivePreview)
     {
         $this->_isLivePreview = $isLivePreview;
+    }
+
+    /**
+     * Returns the MIME type of the request, extracted from the request’s content type.
+     *
+     * @return string|null
+     * @since 3.5.0
+     */
+    public function getMimeType()
+    {
+        if (($contentType = parent::getContentType()) === null) {
+            return null;
+        }
+
+        // Strip out the charset & boundary, if present
+        if (($pos = strpos($contentType, ';')) !== false) {
+            $contentType = substr($contentType, 0, $pos);
+        }
+
+        return strtolower(trim($contentType));
+    }
+
+    /**
+     * Returns whether the request’s MIME type is `application/graphql`.
+     *
+     * @return bool
+     * @since 3.5.0
+     */
+    public function getIsGraphql(): bool
+    {
+        return $this->getMimeType() === 'application/graphql';
+    }
+
+    /**
+     * Returns whether the request’s MIME type is `application/json`.
+     *
+     * @return bool
+     * @since 3.5.0
+     */
+    public function getIsJson(): bool
+    {
+        return $this->getMimeType() === 'application/json';
     }
 
     /**

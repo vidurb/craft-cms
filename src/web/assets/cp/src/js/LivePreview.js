@@ -138,9 +138,9 @@ Craft.LivePreview = Garnish.Base.extend(
 
             if (!this.$editor) {
                 this.$shade = $('<div/>', {'class': 'modal-shade dark'}).appendTo(Garnish.$bod);
-                this.$editorContainer = $('<div/>', {'class': 'lp-editor-container'}).appendTo(Garnish.$bod);
                 this.$previewContainer = $('<div/>', {'class': 'lp-preview-container'}).appendTo(Garnish.$bod);
                 this.$iframeContainer = $('<div/>', {'class': 'lp-iframe-container'}).appendTo(this.$previewContainer);
+                this.$editorContainer = $('<div/>', {'class': 'lp-editor-container'}).appendTo(Garnish.$bod);
 
                 var $editorHeader = $('<header/>', {'class': 'flex'}).appendTo(this.$editorContainer);
                 this.$editor = $('<form/>', {'class': 'lp-editor'}).appendTo(this.$editorContainer);
@@ -164,7 +164,7 @@ Craft.LivePreview = Garnish.Base.extend(
             this.handleWindowResize();
             this.addListener(Garnish.$win, 'resize', 'handleWindowResize');
 
-            this.$editorContainer.css(Craft.left, -(this.editorWidthInPx + Craft.LivePreview.dragHandleWidth) + 'px');
+            this.$editorContainer.css(Craft.left, -this.editorWidthInPx + 'px');
             this.$previewContainer.css(Craft.right, -this.getIframeWidth());
 
             // Move all the fields into the editor rather than copying them
@@ -267,7 +267,7 @@ Craft.LivePreview = Garnish.Base.extend(
 
             this.$shade.delay(200).velocity('fadeOut');
 
-            this.$editorContainer.velocity('stop').animateLeft(-(this.editorWidthInPx + Craft.LivePreview.dragHandleWidth), 'slow', $.proxy(function() {
+            this.$editorContainer.velocity('stop').animateLeft(-this.editorWidthInPx, 'slow', $.proxy(function() {
                 for (var i = 0; i < this.fields.length; i++) {
                     this.fields[i].$newClone.remove();
                 }
@@ -304,7 +304,7 @@ Craft.LivePreview = Garnish.Base.extend(
         },
 
         getIframeWidth: function() {
-            return Garnish.$win.width() - (this.editorWidthInPx + Craft.LivePreview.dragHandleWidth);
+            return Garnish.$win.width() - this.editorWidthInPx;
         },
 
         updateWidths: function() {
@@ -448,7 +448,6 @@ Craft.LivePreview = Garnish.Base.extend(
     {
         defaultEditorWidth: 0.33,
         minEditorWidthInPx: 320,
-        dragHandleWidth: 4,
 
         defaults: {
             trigger: '.livepreviewbtn',

@@ -7,7 +7,6 @@
 
 namespace craft\gql\interfaces\elements;
 
-use craft\elements\Entry as EntryElement;
 use craft\gql\arguments\elements\Entry as EntryArguments;
 use craft\gql\GqlEntityRegistry;
 use craft\gql\interfaces\elements\Entry as EntryInterface;
@@ -48,9 +47,7 @@ class Entry extends Structure
             'name' => static::getName(),
             'fields' => self::class . '::getFieldDefinitions',
             'description' => 'This is the interface implemented by all entries.',
-            'resolveType' => function(EntryElement $value) {
-                return $value->getGqlTypeName();
-            }
+            'resolveType' => self::class . '::resolveElementTypeName',
         ]));
 
         EntryType::generateTypes();
@@ -123,6 +120,18 @@ class Entry extends Structure
                 'args' => EntryArguments::getArguments(),
                 'type' => Type::listOf(static::getType()),
                 'description' => 'The same element in other locales.',
+            ],
+            'prev' => [
+                'name' => 'prev',
+                'type' => self::getType(),
+                'args' => EntryArguments::getArguments(),
+                'description' => 'Returns the previous element relative to this one, from a given set of criteria. CAUTION: Applying arguments to this field severely degrades the performance of the query.',
+            ],
+            'next' => [
+                'name' => 'next',
+                'type' => self::getType(),
+                'args' => EntryArguments::getArguments(),
+                'description' => 'Returns the next element relative to this one, from a given set of criteria. CAUTION: Applying arguments to this field severely degrades the performance of the query.',
             ],
         ]), self::getName());
     }

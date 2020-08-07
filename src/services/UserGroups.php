@@ -64,20 +64,15 @@ class UserGroups extends Component
      */
     public function getAllGroups(): array
     {
-        $groups = UserGroupRecord::find()
+        $results = $this->_createUserGroupsQuery()
             ->orderBy(['name' => SORT_ASC])
             ->all();
 
-        foreach ($groups as $key => $value) {
-            $groups[$key] = new UserGroup($value->toArray([
-                'id',
-                'name',
-                'handle',
-                'uid'
-            ]));
+        foreach ($results as $key => $result) {
+            $results[$key] = new UserGroup($result);
         }
 
-        return $groups;
+        return $results;
     }
 
     /**
@@ -223,13 +218,7 @@ class UserGroups extends Component
         }
 
         $configPath = self::CONFIG_USERPGROUPS_KEY . '.' . $group->uid;
-
-        // Save everything except permissions. Not ours to touch.
-        $configData = [
-            'name' => $group->name,
-            'handle' => $group->handle
-        ];
-
+        $configData = $group->getConfig(false);
         $projectConfig->set($configPath, $configData, "Save user group “{$group->handle}”");
 
         // Now that we have a group ID, save it on the model
@@ -256,6 +245,11 @@ class UserGroups extends Component
         $groupRecord->name = $data['name'];
         $groupRecord->handle = $data['handle'];
         $groupRecord->uid = $uid;
+
+        // todo: remove schema version conditions after next beakpoint
+        if (version_compare(Craft::$app->getInstalledSchemaVersion(), '3.5.5', '>=')) {
+            $groupRecord->description = $data['description'] ?? null;
+        }
 
         $groupRecord->save(false);
 
@@ -359,7 +353,7 @@ class UserGroups extends Component
      */
     private function _createUserGroupsQuery(): Query
     {
-        return (new Query())
+        $query = (new Query())
             ->select([
                 'id',
                 'name',
@@ -367,5 +361,13 @@ class UserGroups extends Component
                 'uid'
             ])
             ->from([Table::USERGROUPS]);
+
+        // todo: remove schema version conditions after next beakpoint
+        $schemaVersion = Craft::$app->getInstalledSchemaVersion();
+        if (version_compare($schemaVersion, '3.5.5', '>=')) {
+            $query->addSelect(['description']);
+        }
+
+        return $query;
     }
 }

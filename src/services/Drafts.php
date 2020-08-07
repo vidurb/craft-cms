@@ -338,24 +338,19 @@ class Drafts extends Component
         /** @var ElementInterface|DraftBehavior $draft */
         /** @var DraftBehavior $behavior */
         $behavior = $draft->getBehavior('draft');
-        $source = ElementHelper::sourceElement($draft);
+        $source = ElementHelper::sourceElement($draft, true);
 
-        // If there is no source element for the same site, find a different site to do this from
         if ($source === null) {
-            $draftSiteIds = ArrayHelper::getColumn(ElementHelper::supportedSitesForElement($draft), 'siteId');
-            $source = $draft::find()
-                ->id($draft->getSourceId())
-                ->siteId($draftSiteIds)
-                ->unique()
-                ->anyStatus()
-                ->one();
-            if ($source === null) {
-                throw new Exception('Could not find a source element for the draft in any of its supported sites.');
-            }
+            throw new Exception('Could not find a source element for the draft in any of its supported sites.');
+        }
+
+        // If the source ended up being from a different site than the draft, get the draft in that site
+        if ($source->siteId != $draft->siteId) {
             $draft = $draft::find()
                 ->drafts()
                 ->id($draft->id)
                 ->siteId($source->siteId)
+                ->structureId($source->structureId)
                 ->anyStatus()
                 ->one();
             if ($draft === null) {
@@ -386,6 +381,10 @@ class Drafts extends Component
                 $newSource = $elementsService->duplicateElement($draft, [
                     'id' => $source->id,
                     'uid' => $source->uid,
+                    'root' => $source->root,
+                    'lft' => $source->lft,
+                    'rgt' => $source->rgt,
+                    'level' => $source->level,
                     'dateCreated' => $source->dateCreated,
                     'draftId' => null,
                     'revisionNotes' => $draft->draftNotes ?: Craft::t('app', 'Applied “{name}”', ['name' => $draft->draftName]),
@@ -446,7 +445,7 @@ class Drafts extends Component
     /**
      * Deletes any sourceless drafts that were never formally saved.
      *
-     * This method will check the <config:purgeUnsavedDraftsDuration> config
+     * This method will check the <config3:purgeUnsavedDraftsDuration> config
      * setting, and if it is set to a valid duration, it will delete any
      * sourceless drafts that were created that duration ago, and have still not
      * been formally saved.

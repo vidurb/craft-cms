@@ -80,7 +80,7 @@ class Tags extends BaseRelationField
     /**
      * @inheritdoc
      */
-    public function getInputHtml($value, ElementInterface $element = null): string
+    protected function inputHtml($value, ElementInterface $element = null): string
     {
         if ($element !== null && $element->hasEagerLoadedElements($this->handle)) {
             $value = $element->getEagerLoadedElements($this->handle);
@@ -173,7 +173,7 @@ class Tags extends BaseRelationField
             return $this->_tagGroupId;
         }
 
-        if (!preg_match('/^taggroup:(([0-9a-f\-]+))$/', $this->source, $matches)) {
+        if (!preg_match('/^taggroup:([0-9a-f\-]+)$/', $this->source, $matches)) {
             return $this->_tagGroupId = false;
         }
 

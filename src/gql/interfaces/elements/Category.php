@@ -7,7 +7,6 @@
 
 namespace craft\gql\interfaces\elements;
 
-use craft\elements\Category as CategoryElement;
 use craft\gql\arguments\elements\Category as CategoryArguments;
 use craft\gql\GqlEntityRegistry;
 use craft\gql\interfaces\Structure;
@@ -45,9 +44,7 @@ class Category extends Structure
             'name' => static::getName(),
             'fields' => self::class . '::getFieldDefinitions',
             'description' => 'This is the interface implemented by all categories.',
-            'resolveType' => function(CategoryElement $value) {
-                return $value->getGqlTypeName();
-            }
+            'resolveType' => self::class . '::resolveElementTypeName',
         ]));
 
         CategoryType::generateTypes();
@@ -100,6 +97,18 @@ class Category extends Structure
                 'args' => CategoryArguments::getArguments(),
                 'type' => Type::listOf(static::getType()),
                 'description' => 'The same element in other locales.',
+            ],
+            'prev' => [
+                'name' => 'prev',
+                'type' => self::getType(),
+                'args' => CategoryArguments::getArguments(),
+                'description' => 'Returns the previous element relative to this one, from a given set of criteria. CAUTION: Applying arguments to this field severely degrades the performance of the query.',
+            ],
+            'next' => [
+                'name' => 'next',
+                'type' => self::getType(),
+                'args' => CategoryArguments::getArguments(),
+                'description' => 'Returns the next element relative to this one, from a given set of criteria. CAUTION: Applying arguments to this field severely degrades the performance of the query.',
             ],
         ]), self::getName());
     }

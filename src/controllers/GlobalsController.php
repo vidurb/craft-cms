@@ -12,6 +12,7 @@ use craft\base\Element;
 use craft\elements\GlobalSet;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
+use yii\web\BadRequestHttpException;
 use yii\web\Cookie;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -49,27 +50,27 @@ class GlobalsController extends Controller
      *
      * @return Response|null
      * @throws NotFoundHttpException if the requested global set cannot be found
+     * @throws BadRequestHttpException
      */
     public function actionSaveSet()
     {
         $this->requirePostRequest();
         $this->requireAdmin();
 
-        $globalSetId = Craft::$app->getRequest()->getBodyParam('setId');
+        $globalSetId = $this->request->getBodyParam('setId');
 
         if ($globalSetId) {
             $globalSet = Craft::$app->getGlobals()->getSetById($globalSetId);
-
             if (!$globalSet) {
-                throw new NotFoundHttpException('Global set not found');
+                throw new BadRequestHttpException("Invalid global set ID: $globalSetId");
             }
         } else {
             $globalSet = new GlobalSet();
         }
 
         // Set the simple stuff
-        $globalSet->name = Craft::$app->getRequest()->getBodyParam('name');
-        $globalSet->handle = Craft::$app->getRequest()->getBodyParam('handle');
+        $globalSet->name = $this->request->getBodyParam('name');
+        $globalSet->handle = $this->request->getBodyParam('handle');
 
         // Set the field layout
         $fieldLayout = Craft::$app->getFields()->assembleLayoutFromPost();
@@ -78,7 +79,7 @@ class GlobalsController extends Controller
 
         // Save it
         if (!Craft::$app->getGlobals()->saveSet($globalSet)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t save global set.'));
+            $this->setFailFlash(Craft::t('app', 'Couldn’t save global set.'));
 
             // Send the global set back to the template
             Craft::$app->getUrlManager()->setRouteParams([
@@ -88,8 +89,7 @@ class GlobalsController extends Controller
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Global set saved.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'Global set saved.'));
         return $this->redirectToPostedUrl($globalSet);
     }
 
@@ -104,7 +104,7 @@ class GlobalsController extends Controller
         $this->requireAcceptsJson();
         $this->requireAdmin();
 
-        $globalSetId = Craft::$app->getRequest()->getRequiredBodyParam('id');
+        $globalSetId = $this->request->getRequiredBodyParam('id');
 
         Craft::$app->getGlobals()->deleteGlobalSetById($globalSetId);
 
@@ -136,7 +136,7 @@ class GlobalsController extends Controller
             // Make sure a specific site was requested
             if ($siteHandle === null) {
                 // See if they have a cookie for it
-                $siteId = Craft::$app->getRequest()->getRawCookies()->getValue($siteCookieName);
+                $siteId = $this->request->getRawCookies()->getValue($siteCookieName);
                 if ($siteId && in_array($siteId, $editableSiteIds, false)) {
                     $site = Craft::$app->getSites()->getSiteById($siteId);
                 } else {
@@ -175,7 +175,7 @@ class GlobalsController extends Controller
                 'httpOnly' => false,
                 'expire' => (new \DateTime('+1 year'))->getTimestamp(),
             ]));
-            Craft::$app->getResponse()->getRawCookies()->add($cookie);
+            $this->response->getRawCookies()->add($cookie);
         } else {
             /** @noinspection PhpUnhandledExceptionInspection */
             $site = Craft::$app->getSites()->getPrimarySite();
@@ -202,40 +202,17 @@ class GlobalsController extends Controller
             $globalSet = $editableGlobalSets[$globalSetHandle];
         }
 
-        // Body class
-        $bodyClass = 'edit-global-set site--' . $site->handle;
-
-        // Define the content tabs
-        // ---------------------------------------------------------------------
-
-        $tabs = [];
-
-        foreach ($globalSet->getFieldLayout()->getTabs() as $index => $tab) {
-            // Do any of the fields on this tab have errors?
-            $hasErrors = false;
-
-            if ($globalSet->hasErrors()) {
-                foreach ($tab->getFields() as $field) {
-                    if ($hasErrors = $globalSet->hasErrors($field->handle . '.*')) {
-                        break;
-                    }
-                }
-            }
-
-            $tabs[] = [
-                'label' => Craft::t('site', $tab->name),
-                'url' => '#' . $tab->getHtmlId(),
-                'class' => $hasErrors ? 'error' : null
-            ];
-        }
+        // Prep the form tabs & content
+        $form = $globalSet->getFieldLayout()->createForm($globalSet);
 
         // Render the template!
-        return $this->renderTemplate('globals/_edit', compact(
-            'bodyClass',
-            'editableGlobalSets',
-            'globalSet',
-            'tabs'
-        ));
+        return $this->renderTemplate('globals/_edit', [
+            'bodyClass' => 'edit-global-set site--' . $site->handle,
+            'editableGlobalSets' => $editableGlobalSets,
+            'globalSet' => $globalSet,
+            'tabs' => $form->getTabMenu(),
+            'fieldsHtml' => $form->render(),
+        ]);
     }
 
     /**
@@ -248,8 +225,8 @@ class GlobalsController extends Controller
     {
         $this->requirePostRequest();
 
-        $globalSetId = Craft::$app->getRequest()->getRequiredBodyParam('setId');
-        $siteId = Craft::$app->getRequest()->getBodyParam('siteId') ?: Craft::$app->getSites()->getPrimarySite()->id;
+        $globalSetId = $this->request->getRequiredBodyParam('setId');
+        $siteId = $this->request->getBodyParam('siteId') ?: Craft::$app->getSites()->getPrimarySite()->id;
 
         $site = Craft::$app->getSites()->getSiteById($siteId);
         $globalSet = Craft::$app->getGlobals()->getSetById($globalSetId, $siteId);
@@ -273,7 +250,7 @@ class GlobalsController extends Controller
         $globalSet->setScenario(Element::SCENARIO_LIVE);
 
         if (!Craft::$app->getElements()->saveElement($globalSet)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t save global set.'));
+            $this->setFailFlash(Craft::t('app', 'Couldn’t save global set.'));
 
             // Send the global set back to the template
             Craft::$app->getUrlManager()->setRouteParams([
@@ -283,8 +260,7 @@ class GlobalsController extends Controller
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Global set saved.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'Global set saved.'));
         return $this->redirectToPostedUrl();
     }
 }

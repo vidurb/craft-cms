@@ -29,6 +29,7 @@ use yii\db\Connection;
  * @method Asset|array|null nth(int $n, Connection $db = null)
  * @author Pixel & Tonic, Inc. <support@pixelandtonic.com>
  * @since 3.0.0
+ * @doc-path assets.md
  * @supports-site-params
  * @supports-title-param
  * @replace {element} asset
@@ -65,7 +66,7 @@ class AssetQuery extends ElementQuery
     // -------------------------------------------------------------------------
 
     /**
-     * @var int|int[]|null The volume ID(s) that the resulting assets must be in.
+     * @var int|int[]|string|null The volume ID(s) that the resulting assets must be in.
      * ---
      * ```php
      * // fetch assets in the Logos volume
@@ -314,6 +315,7 @@ class AssetQuery extends ElementQuery
      * | `'not 1'` | not in a volume with an ID of 1.
      * | `[1, 2]` | in a volume with an ID of 1 or 2.
      * | `['not', 1, 2]` | not in a volume with an ID of 1 or 2.
+     * | `':empty:'` | that haven’t been stored in a volume yet
      *
      * ---
      *
@@ -331,7 +333,7 @@ class AssetQuery extends ElementQuery
      *     ->all();
      * ```
      *
-     * @param int|int[]|null $value The property value
+     * @param int|int[]|string|null $value The property value
      * @return static self reference
      * @uses $volumeId
      */
@@ -813,7 +815,7 @@ class AssetQuery extends ElementQuery
      */
     protected function beforePrepare(): bool
     {
-        // See if 'source' was set to an invalid handle
+        // See if 'volume' was set to an invalid handle
         if ($this->volumeId === []) {
             return false;
         }
@@ -841,7 +843,11 @@ class AssetQuery extends ElementQuery
 
         $this->_normalizeVolumeId();
         if ($this->volumeId) {
-            $this->subQuery->andWhere(['assets.volumeId' => $this->volumeId]);
+            if ($this->volumeId === ':empty:') {
+                $this->subQuery->andWhere(['assets.volumeId' => null]);
+            } else {
+                $this->subQuery->andWhere(['assets.volumeId' => $this->volumeId]);
+            }
         }
 
         if ($this->folderId) {
@@ -899,6 +905,10 @@ class AssetQuery extends ElementQuery
      */
     private function _normalizeVolumeId()
     {
+        if ($this->volumeId === ':empty:') {
+            return;
+        }
+
         if (empty($this->volumeId)) {
             $this->volumeId = null;
         } else if (is_numeric($this->volumeId)) {
@@ -919,7 +929,7 @@ class AssetQuery extends ElementQuery
     protected function cacheTags(): array
     {
         $tags = [];
-        if ($this->volumeId) {
+        if ($this->volumeId && $this->volumeId !== ':empty:') {
             foreach ($this->volumeId as $volumeId) {
                 $tags[] = "volume:$volumeId";
             }

@@ -35,11 +35,11 @@ use craft\events\RegisterPreviewTargetsEvent;
 use craft\events\SetEagerLoadedElementsEvent;
 use craft\events\SetElementRouteEvent;
 use craft\events\SetElementTableAttributeHtmlEvent;
+use craft\fieldlayoutelements\BaseField;
 use craft\helpers\ArrayHelper;
 use craft\helpers\Db;
 use craft\helpers\ElementHelper;
 use craft\helpers\Html;
-use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use craft\helpers\Template;
 use craft\helpers\UrlHelper;
@@ -57,7 +57,6 @@ use Twig\Markup;
 use yii\base\Event;
 use yii\base\Exception;
 use yii\base\InvalidConfigException;
-use yii\base\InvalidValueException;
 use yii\validators\NumberValidator;
 use yii\validators\Validator;
 
@@ -591,7 +590,7 @@ abstract class Element extends Component implements ElementInterface
     protected static function defineFieldLayouts(string $source): array
     {
         // Default to all of the field layouts associated with this element type
-        return Craft::$app->getFields()->getLayoutsByElementType(static::class);
+        return Craft::$app->getFields()->getLayoutsByType(static::class);
     }
 
     /**
@@ -1001,10 +1000,12 @@ abstract class Element extends Component implements ElementInterface
                                 $ancestorStructureDatum['level'] == $elementStructureDatum['level'] - 1
                             )
                         ) {
-                            $map[] = [
-                                'source' => $elementStructureDatum['elementId'],
-                                'target' => $ancestorStructureDatum['elementId'],
-                            ];
+                            if ($ancestorStructureDatum['elementId']) {
+                                $map[] = [
+                                    'source' => $elementStructureDatum['elementId'],
+                                    'target' => $ancestorStructureDatum['elementId'],
+                                ];
+                            }
 
                             // If we're just fetching the parents, then we're done with this element
                             if ($handle === 'parent') {
@@ -1275,8 +1276,9 @@ abstract class Element extends Component implements ElementInterface
     /**
      * @var string[]|null Record of dirty attributes.
      * @see getDirtyAttributes()
+     * @see isAttributeDirty()
      */
-    private $_dirtyAttributes;
+    private $_dirtyAttributes = [];
 
     /**
      * @var string|null The initial title value, if there was one.
@@ -1406,7 +1408,7 @@ abstract class Element extends Component implements ElementInterface
 
         // If this is a field, make sure the value has been normalized before returning the CustomFieldBehavior value
         if ($this->fieldByHandle($name) !== null) {
-            $this->normalizeFieldValue($name);
+            return $this->getFieldValue($name);
         }
 
         return parent::__get($name);
@@ -1572,8 +1574,14 @@ abstract class Element extends Component implements ElementInterface
             $layout = $this->getFieldLayout();
 
             if ($layout !== null) {
-                foreach ($layout->getFields() as $field) {
-                    $labels[$field->handle] = Craft::t('site', $field->name);
+                foreach ($layout->getTabs() as $tab) {
+                    if ($tab->elements) {
+                        foreach ($tab->elements as $element) {
+                            if ($element instanceof BaseField && ($label = $element->label()) !== null) {
+                                $labels[$element->attribute()] = $label;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1627,54 +1635,7 @@ abstract class Element extends Component implements ElementInterface
                 }
 
                 foreach ($field->getElementValidationRules() as $rule) {
-                    if ($rule instanceof Validator) {
-                        $rules[] = $rule;
-                    } else {
-                        if (is_string($rule)) {
-                            // "Validator" syntax
-                            $rule = [$attribute, $rule, 'on' => [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE]];
-                        }
-
-                        if (!is_array($rule) || !isset($rule[0])) {
-                            throw new InvalidConfigException('Invalid validation rule for custom field "' . $field->handle . '".');
-                        }
-
-                        if (isset($rule[1])) {
-                            // Make sure the attribute name starts with 'field:'
-                            if ($rule[0] === $field->handle) {
-                                $rule[0] = $attribute;
-                            }
-                        } else {
-                            // ["Validator"] syntax
-                            array_unshift($rule, $attribute);
-                        }
-
-                        if ($rule[1] instanceof \Closure || $field->hasMethod($rule[1])) {
-                            // InlineValidator assumes that the closure is on the model being validated
-                            // so it won’t pass a reference to the element
-                            $rule = [
-                                $rule[0],
-                                'validateCustomFieldAttribute',
-                                'params' => [
-                                    $field,
-                                    $rule[1],
-                                    $rule['params'] ?? null,
-                                ]
-                            ];
-                        }
-
-                        // Set 'isEmpty' to the field's isEmpty() method by default
-                        if (!array_key_exists('isEmpty', $rule)) {
-                            $rule['isEmpty'] = $isEmpty;
-                        }
-
-                        // Set 'on' to the main scenarios by default
-                        if (!array_key_exists('on', $rule)) {
-                            $rule['on'] = [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE];
-                        }
-
-                        $rules[] = $rule;
-                    }
+                    $rules[] = $this->_normalizeFieldRule($attribute, $rule, $field, $isEmpty);
                 }
             }
 
@@ -1684,6 +1645,68 @@ abstract class Element extends Component implements ElementInterface
         }
 
         return $rules;
+    }
+
+    /**
+     * Normalizes a field’s validation rule.
+     *
+     * @param string $attribute
+     * @param mixed $rule
+     * @param FieldInterface $field
+     * @param callable $isEmpty
+     * @return Validator|array
+     * @throws InvalidConfigException
+     */
+    private function _normalizeFieldRule(string $attribute, $rule, FieldInterface $field, callable $isEmpty)
+    {
+        if ($rule instanceof Validator) {
+            return $rule;
+        }
+
+        if (is_string($rule)) {
+            // "Validator" syntax
+            $rule = [$attribute, $rule, 'on' => [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE]];
+        }
+
+        if (!is_array($rule) || !isset($rule[0])) {
+            throw new InvalidConfigException('Invalid validation rule for custom field "' . $field->handle . '".');
+        }
+
+        if (isset($rule[1])) {
+            // Make sure the attribute name starts with 'field:'
+            if ($rule[0] === $field->handle) {
+                $rule[0] = $attribute;
+            }
+        } else {
+            // ["Validator"] syntax
+            array_unshift($rule, $attribute);
+        }
+
+        if ($rule[1] instanceof \Closure || $field->hasMethod($rule[1])) {
+            // InlineValidator assumes that the closure is on the model being validated
+            // so it won’t pass a reference to the element
+            $rule = [
+                $rule[0],
+                'validateCustomFieldAttribute',
+                'params' => [
+                    $field,
+                    $rule[1],
+                    $rule['params'] ?? null,
+                ]
+            ];
+        }
+
+        // Set 'isEmpty' to the field's isEmpty() method by default
+        if (!array_key_exists('isEmpty', $rule)) {
+            $rule['isEmpty'] = $isEmpty;
+        }
+
+        // Set 'on' to the main scenarios by default
+        if (!array_key_exists('on', $rule)) {
+            $rule['on'] = [self::SCENARIO_DEFAULT, self::SCENARIO_LIVE];
+        }
+
+        return $rule;
     }
 
     /**
@@ -1708,10 +1731,7 @@ abstract class Element extends Component implements ElementInterface
     }
 
     /**
-     * Returns whether a field is empty.
-     *
-     * @param string $handle
-     * @return bool
+     * @inheritdoc
      */
     public function isFieldEmpty(string $handle): bool
     {
@@ -2126,7 +2146,7 @@ abstract class Element extends Component implements ElementInterface
             return self::STATUS_ARCHIVED;
         }
 
-        if (!$this->enabled || !$this->enabledForSite) {
+        if (!$this->enabled || !$this->getEnabledForSite()) {
             return self::STATUS_DISABLED;
         }
 
@@ -2147,7 +2167,9 @@ abstract class Element extends Component implements ElementInterface
         return static::find()
             ->id($this->id ?: false)
             ->structureId($this->structureId)
-            ->siteId(['not', $this->siteId]);
+            ->siteId(['not', $this->siteId])
+            ->drafts($this->getIsDraft())
+            ->revisions($this->getIsRevision());
     }
 
     /**
@@ -2251,7 +2273,7 @@ abstract class Element extends Component implements ElementInterface
 
         return static::find()
             ->structureId($this->structureId)
-            ->ancestorOf(ElementHelper::sourceElement($this))
+            ->ancestorOf($this)
             ->siteId($this->siteId)
             ->ancestorDist($dist);
     }
@@ -2298,7 +2320,7 @@ abstract class Element extends Component implements ElementInterface
     {
         return static::find()
             ->structureId($this->structureId)
-            ->siblingOf(ElementHelper::sourceElement($this))
+            ->siblingOf($this)
             ->siteId($this->siteId);
     }
 
@@ -2311,7 +2333,7 @@ abstract class Element extends Component implements ElementInterface
             /** @var ElementQuery $query */
             $query = $this->_prevSibling = static::find();
             $query->structureId = $this->structureId;
-            $query->prevSiblingOf = ElementHelper::sourceElement($this);
+            $query->prevSiblingOf = $this;
             $query->siteId = $this->siteId;
             $query->anyStatus();
             $this->_prevSibling = $query->one();
@@ -2333,7 +2355,7 @@ abstract class Element extends Component implements ElementInterface
             /** @var ElementQuery $query */
             $query = $this->_nextSibling = static::find();
             $query->structureId = $this->structureId;
-            $query->nextSiblingOf = ElementHelper::sourceElement($this);
+            $query->nextSiblingOf = $this;
             $query->siteId = $this->siteId;
             $query->anyStatus();
             $this->_nextSibling = $query->one();
@@ -2384,8 +2406,7 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isDescendantOf(ElementInterface $element): bool
     {
-        $source = ElementHelper::sourceElement($this);
-        return ($source->root == $element->root && $source->lft > $element->lft && $source->rgt < $element->rgt);
+        return ($this->root == $element->root && $this->lft > $element->lft && $this->rgt < $element->rgt);
     }
 
     /**
@@ -2402,8 +2423,7 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isChildOf(ElementInterface $element): bool
     {
-        $source = ElementHelper::sourceElement($this);
-        return ($source->root == $element->root && $source->level == $element->level + 1 && $source->isDescendantOf($element));
+        return ($this->root == $element->root && $this->level == $element->level + 1 && $this->isDescendantOf($element));
     }
 
     /**
@@ -2411,13 +2431,12 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isSiblingOf(ElementInterface $element): bool
     {
-        $source = ElementHelper::sourceElement($this);
-        if ($source->root == $element->root && $source->level !== null && $source->level == $element->level) {
-            if ($source->level == 1 || $source->isPrevSiblingOf($element) || $source->isNextSiblingOf($element)) {
+        if ($this->root == $element->root && $this->level !== null && $this->level == $element->level) {
+            if ($this->level == 1 || $this->isPrevSiblingOf($element) || $this->isNextSiblingOf($element)) {
                 return true;
             }
 
-            $parent = $source->getParent();
+            $parent = $this->getParent();
 
             if ($parent) {
                 return $element->isDescendantOf($parent);
@@ -2432,8 +2451,7 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isPrevSiblingOf(ElementInterface $element): bool
     {
-        $source = ElementHelper::sourceElement($this);
-        return ($source->root == $element->root && $source->level == $element->level && $source->rgt == $element->lft - 1);
+        return ($this->root == $element->root && $this->level == $element->level && $this->rgt == $element->lft - 1);
     }
 
     /**
@@ -2441,8 +2459,7 @@ abstract class Element extends Component implements ElementInterface
      */
     public function isNextSiblingOf(ElementInterface $element): bool
     {
-        $source = ElementHelper::sourceElement($this);
-        return ($source->root == $element->root && $source->level == $element->level && $source->lft == $element->rgt + 1);
+        return ($this->root == $element->root && $this->level == $element->level && $this->lft == $element->rgt + 1);
     }
 
     /**
@@ -2489,24 +2506,56 @@ abstract class Element extends Component implements ElementInterface
     /**
      * @inheritdoc
      */
-    public function getDirtyAttributes(): array
+    public function isAttributeDirty(string $name): bool
     {
-        $dirtyAttributes = $this->_dirtyAttributes ?? [];
-        if (static::hasTitles() && $this->title !== $this->_savedTitle) {
-            $dirtyAttributes[] = 'title';
-        }
-        return $dirtyAttributes;
+        return $this->_allDirty() || isset($this->_dirtyAttributes[$name]);
     }
 
     /**
-     * Sets the list of dirty attribute names.
-     *
-     * @param string[] $names
-     * @see getDirtyAttributes()
+     * @inheritdoc
      */
-    public function setDirtyAttributes(array $names)
+    public function getDirtyAttributes(): array
     {
-        $this->_dirtyAttributes = $names;
+        if (static::hasTitles() && $this->title !== $this->_savedTitle) {
+            $this->_dirtyAttributes['title'] = true;
+        }
+        return array_keys($this->_dirtyAttributes);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setDirtyAttributes(array $names, bool $merge = true)
+    {
+        if ($merge) {
+            $this->_dirtyAttributes = array_merge($this->_dirtyAttributes, array_flip($names));
+        } else {
+            $this->_dirtyAttributes = array_flip($names);
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getIsTitleTranslatable(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getTitleTranslationDescription()
+    {
+        return ElementHelper::translationDescription(Field::TRANSLATION_METHOD_SITE);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getTitleTranslationKey(): string
+    {
+        return ElementHelper::translationKey($this, Field::TRANSLATION_METHOD_SITE);
     }
 
     /**
@@ -2636,7 +2685,7 @@ abstract class Element extends Component implements ElementInterface
     }
 
     /**
-     * Returns whether all fields should be considered dirty.
+     * Returns whether all fields and attributes should be considered dirty.
      *
      * @return bool
      */
@@ -2659,7 +2708,7 @@ abstract class Element extends Component implements ElementInterface
     public function markAsClean()
     {
         $this->_allDirty = false;
-        $this->_dirtyAttributes = null;
+        $this->_dirtyAttributes = [];
         $this->_dirtyFields = null;
         if (static::hasTitles()) {
             $this->_savedTitle = $this->title;
@@ -3035,31 +3084,19 @@ abstract class Element extends Component implements ElementInterface
      */
     public function getEditorHtml(): string
     {
-        $html = '';
-
         $fieldLayout = $this->getFieldLayout();
-        $view = Craft::$app->getView();
+        if (!$fieldLayout) {
+            return '';
+        }
 
-        if ($fieldLayout) {
-            $namespace = $view->getNamespace();
-            $view->setNamespace($view->namespaceInputName('fields'));
-            $view->setIsDeltaRegistrationActive(true);
+        $html = Html::hiddenInput('fieldLayoutId', $fieldLayout->id);
 
-            foreach ($fieldLayout->getFields() as $field) {
-                $fieldHtml = $view->renderTemplate('_includes/field', [
-                    'element' => $this,
-                    'field' => $field,
-                    'required' => $field->required,
-                    'registerDeltas' => true,
-                ]);
-
-                $html .= Html::namespaceHtml($fieldHtml, 'fields');
+        foreach ($fieldLayout->getTabs() as $tab) {
+            foreach ($tab->elements as $element) {
+                if ($element instanceof BaseField) {
+                    $html .= $element->formHtml($this);
+                }
             }
-
-            $view->setNamespace($namespace);
-            $view->setIsDeltaRegistrationActive(false);
-
-            $html .= Html::hiddenInput('fieldLayoutId', $fieldLayout->id);
         }
 
         return $html;
@@ -3255,11 +3292,7 @@ abstract class Element extends Component implements ElementInterface
         }
 
         $behavior = $this->getBehavior('customFields');
-        $value = $behavior->$fieldHandle;
-        if (is_string($value) && Json::isJsonObject($value)) {
-            $value = Json::decodeIfJson($value);
-        }
-        $behavior->$fieldHandle = $field->normalizeValue($value, $this);
+        $behavior->$fieldHandle = $field->normalizeValue($behavior->$fieldHandle, $this);
         $this->_normalizedFieldValues[$fieldHandle] = true;
     }
 

@@ -18,12 +18,16 @@ use craft\events\DefineUserContentSummaryEvent;
 use craft\events\LoginFailureEvent;
 use craft\events\RegisterUserActionsEvent;
 use craft\events\UserEvent;
+use craft\helpers\ArrayHelper;
 use craft\helpers\Assets;
 use craft\helpers\FileHelper;
+use craft\helpers\Html;
 use craft\helpers\Image;
 use craft\helpers\Json;
 use craft\helpers\UrlHelper;
 use craft\helpers\User as UserHelper;
+use craft\i18n\Locale;
+use craft\models\UserGroup;
 use craft\services\Users;
 use craft\web\assets\edituser\EditUserAsset;
 use craft\web\Controller;
@@ -124,14 +128,13 @@ class UsersController extends Controller
             return $this->_handleSuccessfulLogin();
         }
 
-        $request = Craft::$app->getRequest();
-        if (!$request->getIsPost()) {
+        if (!$this->request->getIsPost()) {
             return null;
         }
 
-        $loginName = $request->getRequiredBodyParam('loginName');
-        $password = $request->getRequiredBodyParam('password');
-        $rememberMe = (bool)$request->getBodyParam('rememberMe');
+        $loginName = $this->request->getRequiredBodyParam('loginName');
+        $password = $this->request->getRequiredBodyParam('password');
+        $rememberMe = (bool)$this->request->getBodyParam('rememberMe');
 
         // Does a user exist with that username/email?
         $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($loginName);
@@ -176,9 +179,7 @@ class UsersController extends Controller
 
         $userSession = Craft::$app->getUser();
         $session = Craft::$app->getSession();
-        $request = Craft::$app->getRequest();
-
-        $userId = $request->getBodyParam('userId');
+        $userId = $this->request->getBodyParam('userId');
 
         // Make sure they're allowed to impersonate this user
         $usersService = Craft::$app->getUsers();
@@ -193,9 +194,8 @@ class UsersController extends Controller
 
         if (!$userSession->loginByUserId($userId)) {
             $session->remove(User::IMPERSONATE_KEY);
-            $session->setError(Craft::t('app', 'There was a problem impersonating this user.'));
+            $this->setFailFlash(Craft::t('app', 'There was a problem impersonating this user.'));
             Craft::error($userSession->getIdentity()->username . ' tried to impersonate userId: ' . $userId . ' but something went wrong.', __METHOD__);
-
             return null;
         }
 
@@ -234,7 +234,7 @@ class UsersController extends Controller
         ];
 
         if (Craft::$app->getConfig()->getGeneral()->enableCsrfProtection) {
-            $return['csrfTokenValue'] = Craft::$app->getRequest()->getCsrfToken();
+            $return['csrfTokenValue'] = $this->request->getCsrfToken();
         }
 
         if ($user !== null) {
@@ -268,8 +268,7 @@ class UsersController extends Controller
      */
     public function actionStartElevatedSession()
     {
-        $request = Craft::$app->getRequest();
-        $password = $request->getBodyParam('currentPassword') ?? $request->getBodyParam('password');
+        $password = $this->request->getBodyParam('currentPassword') ?? $this->request->getBodyParam('password');
 
         try {
             $success = Craft::$app->getUser()->startElevatedSession($password);
@@ -299,21 +298,20 @@ class UsersController extends Controller
         // Passing false here for reasons.
         Craft::$app->getUser()->logout(false);
 
-        $request = Craft::$app->getRequest();
-        if ($request->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             $return = [
                 'success' => true
             ];
 
             if (Craft::$app->getConfig()->getGeneral()->enableCsrfProtection) {
-                $return['csrfTokenValue'] = $request->getCsrfToken();
+                $return['csrfTokenValue'] = $this->request->getCsrfToken();
             }
 
             return $this->asJson($return);
         }
 
         // Redirect to the login page if this is a CP request
-        if ($request->getIsCpRequest()) {
+        if ($this->request->getIsCpRequest()) {
             return $this->redirect(Request::CP_PATH_LOGIN);
         }
 
@@ -329,15 +327,13 @@ class UsersController extends Controller
     public function actionSendPasswordResetEmail()
     {
         $this->requirePostRequest();
-        $request = Craft::$app->getRequest();
-
         $errors = [];
         $existingUser = false;
         $loginName = null;
 
         // If someone's logged in and they're allowed to edit other users, then see if a userId was submitted
         if (Craft::$app->getUser()->checkPermission('editUsers')) {
-            $userId = $request->getBodyParam('userId');
+            $userId = $this->request->getBodyParam('userId');
 
             if ($userId) {
                 $user = Craft::$app->getUsers()->getUserById($userId);
@@ -352,7 +348,7 @@ class UsersController extends Controller
 
         /** @noinspection UnSafeIsSetOverArrayInspection - FP */
         if (!isset($user)) {
-            $loginName = $request->getBodyParam('loginName');
+            $loginName = $this->request->getBodyParam('loginName');
 
             if (!$loginName) {
                 // If they didn't even enter a username/email, just bail now.
@@ -378,12 +374,11 @@ class UsersController extends Controller
         }
 
         if (empty($errors)) {
-            if ($request->getAcceptsJson()) {
+            if ($this->request->getAcceptsJson()) {
                 return $this->asJson(['success' => true]);
             }
 
-            Craft::$app->getSession()->setNotice(Craft::t('app', 'Password reset email sent.'));
-
+            $this->setSuccessFlash(Craft::t('app', 'Password reset email sent.'));
             return $this->redirectToPostedUrl();
         }
 
@@ -405,7 +400,7 @@ class UsersController extends Controller
             throw new BadRequestHttpException('Existing password verification failed');
         }
 
-        $userId = Craft::$app->getRequest()->getRequiredParam('userId');
+        $userId = $this->request->getRequiredParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -425,8 +420,7 @@ class UsersController extends Controller
     public function actionSetPassword(): Response
     {
         // Have they just submitted a password, or are we just displaying the page?
-        $request = Craft::$app->getRequest();
-        if (!$request->getIsPost()) {
+        if (!$this->request->getIsPost()) {
             if (!is_array($info = $this->_processTokenRequest())) {
                 return $info;
             }
@@ -447,28 +441,28 @@ class UsersController extends Controller
         }
 
         // POST request. They've just set the password.
-        $code = $request->getRequiredBodyParam('code');
-        $uid = $request->getRequiredParam('id');
+        $code = $this->request->getRequiredBodyParam('code');
+        $uid = $this->request->getRequiredParam('id');
         $user = Craft::$app->getUsers()->getUserByUid($uid);
 
         // See if we still have a valid token.
         $isCodeValid = Craft::$app->getUsers()->isVerificationCodeValidForUser($user, $code);
 
         if (!$user || !$isCodeValid) {
-            return $this->_processInvalidToken($request);
+            return $this->_processInvalidToken();
         }
 
-        $user->newPassword = $request->getRequiredBodyParam('newPassword');
+        $user->newPassword = $this->request->getRequiredBodyParam('newPassword');
         $user->setScenario(User::SCENARIO_PASSWORD);
 
         if (!Craft::$app->getElements()->saveElement($user)) {
             $errors = $user->getErrors('newPassword');
 
-            if ($request->getAcceptsJson()) {
+            if ($this->request->getAcceptsJson()) {
                 return $this->asErrorJson(implode(', ', $errors));
             }
 
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t update password.'));
+            $this->setFailFlash(Craft::t('app', 'Couldn’t update password.'));
 
             return $this->_renderSetPasswordTemplate([
                 'errors' => $errors,
@@ -489,10 +483,16 @@ class UsersController extends Controller
         }
 
         // Maybe automatically log them in
-        $this->_maybeLoginUserAfterAccountActivation($user);
+        $loggedIn = $this->_maybeLoginUserAfterAccountActivation($user);
 
-        if ($request->getAcceptsJson()) {
-            return $this->asJson(['success' => true]);
+        if ($this->request->getAcceptsJson()) {
+            $return = [
+                'success' => true,
+            ];
+            if ($loggedIn && Craft::$app->getConfig()->getGeneral()->enableCsrfProtection) {
+                $return['csrfTokenValue'] = $this->request->getCsrfToken();
+            }
+            return $this->asJson($return);
         }
 
         // Can they access the CP?
@@ -538,7 +538,7 @@ class UsersController extends Controller
 
         // If they're logged in, give them a success notice
         if (!Craft::$app->getUser()->getIsGuest()) {
-            Craft::$app->getSession()->setNotice(Craft::t('app', 'Email verified'));
+            $this->setSuccessFlash(Craft::t('app', 'Email verified'));
         }
 
         // Were they just activated?
@@ -559,7 +559,7 @@ class UsersController extends Controller
         $this->requirePermission('administrateUsers');
         $this->requirePostRequest();
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -567,9 +567,9 @@ class UsersController extends Controller
         }
 
         if (Craft::$app->getUsers()->activateUser($user)) {
-            Craft::$app->getSession()->setNotice(Craft::t('app', 'Successfully activated the user.'));
+            $this->setSuccessFlash(Craft::t('app', 'Successfully activated the user.'));
         } else {
-            Craft::$app->getSession()->setError(Craft::t('app', 'There was a problem activating the user.'));
+            $this->setFailFlash(Craft::t('app', 'There was a problem activating the user.'));
         }
 
         return $this->redirectToPostedUrl();
@@ -588,7 +588,7 @@ class UsersController extends Controller
     public function actionEditUser($userId = null, User $user = null, array $errors = null): Response
     {
         if (!empty($errors)) {
-            Craft::$app->getSession()->setError(reset($errors));
+            $this->setFailFlash(reset($errors));
         }
 
         // Determine which user account we're editing
@@ -768,6 +768,12 @@ class UsersController extends Controller
             $title = Craft::t('app', 'Register a new user');
         }
 
+        // Prep the form tabs & content
+        // ---------------------------------------------------------------------
+
+        $form = $user->getFieldLayout()->createForm($user, false, [
+            'tabIdPrefix' => 'profile',
+        ]);
         $selectedTab = 'account';
 
         $tabs = [
@@ -777,29 +783,7 @@ class UsersController extends Controller
             ]
         ];
 
-        foreach ($user->getFieldLayout()->getTabs() as $index => $tab) {
-            // Skip if the tab doesn't have any fields
-            if (empty($tab->getFields())) {
-                continue;
-            }
-
-            // Do any of the fields on this tab have errors?
-            $hasErrors = false;
-
-            if ($user->hasErrors()) {
-                foreach ($tab->getFields() as $field) {
-                    if ($hasErrors = $user->hasErrors($field->handle . '.*')) {
-                        break;
-                    }
-                }
-            }
-
-            $tabs['profile' . $index] = [
-                'label' => Craft::t('site', $tab->name),
-                'url' => '#profile-' . $tab->getHtmlId(),
-                'class' => $hasErrors ? 'error' : null
-            ];
-        }
+        $tabs += $form->getTabMenu();
 
         // Show the permission tab for the users that can change them on Craft Pro editions
         if (
@@ -854,6 +838,49 @@ class UsersController extends Controller
             }
         }
 
+        $fieldsHtml = $form->render(false);
+
+        // Prepare the language/locale options
+        // ---------------------------------------------------------------------
+
+        if ($isCurrentUser) {
+            /** @var Locale[] $allLocales */
+            $allLocales = ArrayHelper::index(Craft::$app->getI18n()->getAppLocales(), 'id');
+            ArrayHelper::multisort($allLocales, 'displayName');
+            $localeOptions = [];
+            foreach ($allLocales as $locale) {
+                $localeOptions[] = [
+                    'label' => $locale->getDisplayName(),
+                    'value' => $locale->id,
+                ];
+            }
+
+            $userLanguage = $user->getPreferredLanguage();
+            if ($userLanguage !== null && !isset($allLocales[$userLanguage])) {
+                $userLanguage = null;
+            }
+
+            $userLocale = $user->getPreferredLocale();
+            if ($userLocale !== null && !isset($allLocales[$userLocale])) {
+                $userLocale = null;
+            }
+
+            if ($userLanguage === null) {
+                $userLanguage = Craft::$app->language;
+
+                // Only set the locale to the defaultCpLocale by default if the language isn't set either.
+                // Otherwise `null` means "Same as language"
+                if ($userLocale === null) {
+                    $generalConfig = Craft::$app->getConfig()->getGeneral();
+                    if ($generalConfig->defaultCpLocale) {
+                        $userLocale = $generalConfig->defaultCpLocale;
+                    }
+                }
+            }
+        } else {
+            $localeOptions = $userLanguage = $userLocale = null;
+        }
+
         // Load the resources and render the page
         // ---------------------------------------------------------------------
 
@@ -874,10 +901,14 @@ class UsersController extends Controller
             'isNewUser',
             'statusLabel',
             'actions',
+            'localeOptions',
+            'userLanguage',
+            'userLocale',
             'bodyClass',
             'title',
             'tabs',
-            'selectedTab'
+            'selectedTab',
+            'fieldsHtml'
         ));
     }
 
@@ -901,18 +932,18 @@ class UsersController extends Controller
     {
         $this->requirePostRequest();
 
-        $request = Craft::$app->getRequest();
         $userSession = Craft::$app->getUser();
         $currentUser = $userSession->getIdentity();
         $canAdministrateUsers = $currentUser && $currentUser->can('administrateUsers');
         $generalConfig = Craft::$app->getConfig()->getGeneral();
         $userSettings = Craft::$app->getProjectConfig()->get('users') ?? [];
         $requireEmailVerification = $userSettings['requireEmailVerification'] ?? true;
+        $userVariable = $this->request->getValidatedBodyParam('userVariable') ?? 'user';
 
         // Get the user being edited
         // ---------------------------------------------------------------------
 
-        $userId = $request->getBodyParam('userId');
+        $userId = $this->request->getBodyParam('userId');
         $isNewUser = !$userId;
         $isPublicRegistration = false;
 
@@ -972,7 +1003,7 @@ class UsersController extends Controller
 
         // Are they allowed to set the email address?
         if ($isNewUser || $isCurrentUser || $canAdministrateUsers) {
-            $newEmail = $request->getBodyParam('email');
+            $newEmail = $this->request->getBodyParam('email');
 
             // Make sure it actually changed
             if ($newEmail && $newEmail === $user->email) {
@@ -987,13 +1018,13 @@ class UsersController extends Controller
                         $requireEmailVerification && (
                             $isPublicRegistration ||
                             ($isCurrentUser && !$canAdministrateUsers) ||
-                            $request->getBodyParam('sendVerificationEmail')
+                            $this->request->getBodyParam('sendVerificationEmail')
                         )
                     ) ||
                     (
                         !$requireEmailVerification && $isNewUser && (
                             ($isPublicRegistration && $generalConfig->deferPublicRegistrationPassword) ||
-                            $request->getBodyParam('sendVerificationEmail')
+                            $this->request->getBodyParam('sendVerificationEmail')
                         )
                     )
                 );
@@ -1015,12 +1046,12 @@ class UsersController extends Controller
         // Are they allowed to set a new password?
         if ($isPublicRegistration) {
             if (!$generalConfig->deferPublicRegistrationPassword) {
-                $user->newPassword = $request->getBodyParam('password', '');
+                $user->newPassword = $this->request->getBodyParam('password', '');
             }
         } else {
             if ($isCurrentUser) {
                 // If there was a newPassword input but it was empty, pretend it didn't exist
-                $user->newPassword = $request->getBodyParam('newPassword') ?: null;
+                $user->newPassword = $this->request->getBodyParam('newPassword') ?: null;
             }
         }
 
@@ -1042,11 +1073,11 @@ class UsersController extends Controller
         if ($generalConfig->useEmailAsUsername) {
             $user->username = $user->email;
         } else {
-            $user->username = $request->getBodyParam('username', ($user->username ?: $user->email));
+            $user->username = $this->request->getBodyParam('username', ($user->username ?: $user->email));
         }
 
-        $user->firstName = $request->getBodyParam('firstName', $user->firstName);
-        $user->lastName = $request->getBodyParam('lastName', $user->lastName);
+        $user->firstName = $this->request->getBodyParam('firstName', $user->firstName);
+        $user->lastName = $this->request->getBodyParam('lastName', $user->lastName);
 
         // New users should always be initially saved in a pending state,
         // even if an admin is doing this and opted to not send the verification email
@@ -1056,10 +1087,10 @@ class UsersController extends Controller
 
         // There are some things only admins can change
         if ($currentUser && $currentUser->admin) {
-            $user->passwordResetRequired = (bool)$request->getBodyParam('passwordResetRequired', $user->passwordResetRequired);
+            $user->passwordResetRequired = (bool)$this->request->getBodyParam('passwordResetRequired', $user->passwordResetRequired);
 
             // Is their admin status changing?
-            if (($adminParam = $request->getBodyParam('admin', $user->admin)) != $user->admin) {
+            if (($adminParam = $this->request->getBodyParam('admin', $user->admin)) != $user->admin) {
                 // Making someone an admin requires an elevated session
                 if ($adminParam) {
                     $this->requireElevatedSession();
@@ -1105,17 +1136,17 @@ class UsersController extends Controller
                 $user->addErrors(['email' => $user->getErrors('unverifiedEmail')]);
             }
 
-            if ($request->getAcceptsJson()) {
+            if ($this->request->getAcceptsJson()) {
                 return $this->asJson([
                     'errors' => $user->getErrors(),
                 ]);
             }
 
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t save user.'));
+            $this->setFailFlash(Craft::t('app', 'Couldn’t save user.'));
 
             // Send the account back to the template
             Craft::$app->getUrlManager()->setRouteParams([
-                'user' => $user
+                $userVariable => $user
             ]);
 
             return null;
@@ -1129,18 +1160,19 @@ class UsersController extends Controller
 
         // Save their preferences too
         $preferences = [
-            'language' => $request->getBodyParam('preferredLanguage', $user->getPreference('language')),
-            'weekStartDay' => $request->getBodyParam('weekStartDay', $user->getPreference('weekStartDay')),
-            'useShapes' => (bool)$request->getBodyParam('useShapes', $user->getPreference('useShapes')),
-            'underlineLinks' => (bool)$request->getBodyParam('underlineLinks', $user->getPreference('underlineLinks')),
+            'language' => $this->request->getBodyParam('preferredLanguage', $user->getPreference('language')),
+            'locale' => $this->request->getBodyParam('preferredLocale', $user->getPreference('locale')) ?: null,
+            'weekStartDay' => $this->request->getBodyParam('weekStartDay', $user->getPreference('weekStartDay')),
+            'useShapes' => (bool)$this->request->getBodyParam('useShapes', $user->getPreference('useShapes')),
+            'underlineLinks' => (bool)$this->request->getBodyParam('underlineLinks', $user->getPreference('underlineLinks')),
         ];
 
         if ($user->admin) {
             $preferences = array_merge($preferences, [
-                'enableDebugToolbarForSite' => (bool)$request->getBodyParam('enableDebugToolbarForSite', $user->getPreference('enableDebugToolbarForSite')),
-                'enableDebugToolbarForCp' => (bool)$request->getBodyParam('enableDebugToolbarForCp', $user->getPreference('enableDebugToolbarForCp')),
-                'showExceptionView' => (bool)$request->getBodyParam('showExceptionView', $user->getPreference('showExceptionView')),
-                'profileTemplates' => (bool)$request->getBodyParam('profileTemplates', $user->getPreference('profileTemplates')),
+                'enableDebugToolbarForSite' => (bool)$this->request->getBodyParam('enableDebugToolbarForSite', $user->getPreference('enableDebugToolbarForSite')),
+                'enableDebugToolbarForCp' => (bool)$this->request->getBodyParam('enableDebugToolbarForCp', $user->getPreference('enableDebugToolbarForCp')),
+                'showExceptionView' => (bool)$this->request->getBodyParam('showExceptionView', $user->getPreference('showExceptionView')),
+                'profileTemplates' => (bool)$this->request->getBodyParam('profileTemplates', $user->getPreference('profileTemplates')),
             ]);
         }
 
@@ -1152,8 +1184,6 @@ class UsersController extends Controller
             if ($user !== $currentUser) {
                 $currentUser->mergePreferences($preferences);
             }
-
-            $userSession->saveDebugPreferencesToSession();
         }
 
         // Is this the current user, and did their username just change?
@@ -1165,13 +1195,16 @@ class UsersController extends Controller
         // Save the user's photo, if it was submitted
         $this->_processUserPhoto($user);
 
-        // If this is public registration, assign the user to the default user group
-        if ($isPublicRegistration) {
-            // Assign them to the default user group
-            Craft::$app->getUsers()->assignUserToDefaultGroup($user);
-        } else {
-            // Assign user groups and permissions if the current user is allowed to do that
-            $this->_processUserGroupsPermissions($user);
+        if (Craft::$app->getEdition() === Craft::Pro) {
+            // If this is public registration, assign the user to the default user group
+            if ($isPublicRegistration) {
+                // Assign them to the default user group
+                Craft::$app->getUsers()->assignUserToDefaultGroup($user);
+            } else if ($currentUser) {
+                // Assign user groups and permissions if the current user is allowed to do that
+                $this->_saveUserPermissions($user, $currentUser);
+                $this->_saveUserGroups($user, $currentUser);
+            }
         }
 
         // Do we need to send a verification email out?
@@ -1183,14 +1216,10 @@ class UsersController extends Controller
 
             if ($isNewUser) {
                 // Send the activation email
-                $emailSent = Craft::$app->getUsers()->sendActivationEmail($user);
+                Craft::$app->getUsers()->sendActivationEmail($user);
             } else {
                 // Send the standard verification email
-                $emailSent = Craft::$app->getUsers()->sendNewEmailVerifyEmail($user);
-            }
-
-            if (!$emailSent) {
-                Craft::$app->getSession()->setError(Craft::t('app', 'User saved, but couldn’t send verification email. Check your email settings.'));
+                Craft::$app->getUsers()->sendNewEmailVerifyEmail($user);
             }
 
             // Put the original email back into place
@@ -1199,24 +1228,29 @@ class UsersController extends Controller
 
         // Is this public registration, and was the user going to be activated automatically?
         $publicActivation = $isPublicRegistration && $user->getStatus() === User::STATUS_ACTIVE;
+        $loggedIn = $publicActivation && $this->_maybeLoginUserAfterAccountActivation($user);
 
-        if ($publicActivation) {
-            // Maybe automatically log them in
-            $this->_maybeLoginUserAfterAccountActivation($user);
-        }
-
-        if ($request->getAcceptsJson()) {
-            return $this->asJson([
+        if ($this->request->getAcceptsJson()) {
+            $return = [
                 'success' => true,
                 'id' => $user->id
-            ]);
+            ];
+            if ($loggedIn && $generalConfig->enableCsrfProtection) {
+                $return['csrfTokenValue'] = $this->request->getCsrfToken();
+            }
+            return $this->asJson($return);
         }
 
         if ($isPublicRegistration) {
-            $message = $request->getParam('userRegisteredNotice') ?? Craft::t('app', 'User registered.');
-            Craft::$app->getSession()->setNotice($message);
+            if (($message = $this->request->getParam('userRegisteredNotice')) !== null) {
+                $default = Html::encode($message);
+                Craft::$app->getDeprecator()->log('userRegisteredNotice', 'The `userRegisteredNotice` param has been deprecated for `users/save-user` requests. Use a hashed `successMessage` param instead.');
+            } else {
+                $default = Craft::t('app', 'User registered.');
+            }
+            $this->setSuccessFlash($default);
         } else {
-            Craft::$app->getSession()->setNotice(Craft::t('app', 'User saved.'));
+            $this->setSuccessFlash(Craft::t('app', 'User saved.'));
         }
 
         // Is this public registration, and is the user going to be activated automatically?
@@ -1237,7 +1271,7 @@ class UsersController extends Controller
     {
         $this->requireAcceptsJson();
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
 
         if ($userId != Craft::$app->getUser()->getIdentity()->id) {
             $this->requirePermission('editUsers');
@@ -1286,7 +1320,7 @@ class UsersController extends Controller
     {
         $this->requireAcceptsJson();
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
 
         if ($userId != Craft::$app->getUser()->getIdentity()->id) {
             $this->requirePermission('editUsers');
@@ -1316,8 +1350,7 @@ class UsersController extends Controller
     {
         $this->requirePostRequest();
 
-        $request = Craft::$app->getRequest();
-        $userId = $request->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
 
         $user = User::find()
             ->id($userId)
@@ -1337,14 +1370,14 @@ class UsersController extends Controller
 
         $emailSent = Craft::$app->getUsers()->sendActivationEmail($user);
 
-        if ($request->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             return $this->asJson(['success' => $emailSent]);
         }
 
         if ($emailSent) {
-            Craft::$app->getSession()->setNotice(Craft::t('app', 'Activation email sent.'));
+            $this->setSuccessFlash(Craft::t('app', 'Activation email sent.'));
         } else {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t send activation email. Check your email settings.'));
+            $this->setFailFlash(Craft::t('app', 'Couldn’t send activation email. Check your email settings.'));
         }
 
         return $this->redirectToPostedUrl();
@@ -1361,7 +1394,7 @@ class UsersController extends Controller
         $this->requirePostRequest();
         $this->requirePermission('moderateUsers');
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -1384,8 +1417,7 @@ class UsersController extends Controller
 
         Craft::$app->getUsers()->unlockUser($user);
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'User activated.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'User unlocked.'));
         return $this->redirectToPostedUrl();
     }
 
@@ -1400,7 +1432,7 @@ class UsersController extends Controller
         $this->requirePostRequest();
         $this->requirePermission('moderateUsers');
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -1415,13 +1447,11 @@ class UsersController extends Controller
         }
 
         if (!Craft::$app->getUsers()->suspendUser($user)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t suspend user.'));
-
+            $this->setFailFlash(Craft::t('app', 'Couldn’t suspend user.'));
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'User suspended.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'User suspended.'));
         return $this->redirectToPostedUrl();
     }
 
@@ -1435,7 +1465,7 @@ class UsersController extends Controller
     {
         $this->requirePostRequest();
 
-        $userIds = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userIds = $this->request->getRequiredBodyParam('userId');
 
         if ($userIds !== (string)Craft::$app->getUser()->getIdentity()->id) {
             $this->requirePermission('deleteUsers');
@@ -1472,8 +1502,7 @@ class UsersController extends Controller
     {
         $this->requirePostRequest();
 
-        $request = Craft::$app->getRequest();
-        $userId = $request->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -1490,7 +1519,7 @@ class UsersController extends Controller
         }
 
         // Are we transferring the user's content to a different user?
-        $transferContentToId = $request->getBodyParam('transferContentTo');
+        $transferContentToId = $this->request->getBodyParam('transferContentTo');
 
         if (is_array($transferContentToId) && isset($transferContentToId[0])) {
             $transferContentToId = $transferContentToId[0];
@@ -1510,13 +1539,11 @@ class UsersController extends Controller
         $user->inheritorOnDelete = $transferContentTo;
 
         if (!Craft::$app->getElements()->deleteElement($user)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t delete the user.'));
-
+            $this->setFailFlash(Craft::t('app', 'Couldn’t delete the user.'));
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'User deleted.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'User deleted.'));
         return $this->redirectToPostedUrl();
     }
 
@@ -1531,7 +1558,7 @@ class UsersController extends Controller
         $this->requirePostRequest();
         $this->requirePermission('moderateUsers');
 
-        $userId = Craft::$app->getRequest()->getRequiredBodyParam('userId');
+        $userId = $this->request->getRequiredBodyParam('userId');
         $user = Craft::$app->getUsers()->getUserById($userId);
 
         if (!$user) {
@@ -1546,13 +1573,11 @@ class UsersController extends Controller
         }
 
         if (!Craft::$app->getUsers()->unsuspendUser($user)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t unsuspend user.'));
-
+            $this->setFailFlash(Craft::t('app', 'Couldn’t unsuspend user.'));
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'User unsuspended.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'User unsuspended.'));
         return $this->redirectToPostedUrl();
     }
 
@@ -1571,13 +1596,11 @@ class UsersController extends Controller
         $fieldLayout->type = User::class;
 
         if (!Craft::$app->getUsers()->saveLayout($fieldLayout)) {
-            Craft::$app->getSession()->setError(Craft::t('app', 'Couldn’t save user fields.'));
-
+            $this->setFailFlash(Craft::t('app', 'Couldn’t save user fields.'));
             return null;
         }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'User fields saved.'));
-
+        $this->setSuccessFlash(Craft::t('app', 'User fields saved.'));
         return $this->redirectToPostedUrl();
     }
 
@@ -1620,19 +1643,18 @@ class UsersController extends Controller
         ]);
         $this->trigger(self::EVENT_LOGIN_FAILURE, $event);
 
-        $request = Craft::$app->getRequest();
-        if ($request->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             return $this->asJson([
                 'errorCode' => $authError,
                 'error' => $event->message
             ]);
         }
 
-        Craft::$app->getSession()->setError($event->message);
+        $this->setFailFlash($event->message);
 
         Craft::$app->getUrlManager()->setRouteParams([
-            'loginName' => $request->getBodyParam('loginName'),
-            'rememberMe' => (bool)$request->getBodyParam('rememberMe'),
+            'loginName' => $this->request->getBodyParam('loginName'),
+            'rememberMe' => (bool)$this->request->getBodyParam('rememberMe'),
             'errorCode' => $authError,
             'errorMessage' => $event->message,
         ]);
@@ -1656,15 +1678,14 @@ class UsersController extends Controller
         $userSession->removeReturnUrl();
 
         // If this was an Ajax request, just return success:true
-        $request = Craft::$app->getRequest();
-        if ($request->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             $return = [
                 'success' => true,
                 'returnUrl' => $returnUrl
             ];
 
             if (Craft::$app->getConfig()->getGeneral()->enableCsrfProtection) {
-                $return['csrfTokenValue'] = $request->getCsrfToken();
+                $return['csrfTokenValue'] = $this->request->getCsrfToken();
             }
 
             return $this->asJson($return);
@@ -1682,12 +1703,12 @@ class UsersController extends Controller
     private function _renderSetPasswordTemplate(array $variables): Response
     {
         // If this is a site request, try handling the request like normal
-        if (Craft::$app->getRequest()->getIsSiteRequest()) {
+        if ($this->request->getIsSiteRequest()) {
             try {
                 Craft::$app->getUrlManager()->setRouteParams([
                     'variables' => $variables,
                 ]);
-                return Craft::$app->handleRequest(Craft::$app->getRequest(), true);
+                return Craft::$app->handleRequest($this->request, true);
             } catch (NotFoundHttpException $e) {
                 // Just go with the CP template
             }
@@ -1730,8 +1751,7 @@ class UsersController extends Controller
             return false;
         }
 
-        $request = Craft::$app->getRequest();
-        $currentPassword = $request->getParam('currentPassword') ?? $request->getParam('password');
+        $currentPassword = $this->request->getParam('currentPassword') ?? $this->request->getParam('password');
         if ($currentPassword === null) {
             return false;
         }
@@ -1753,7 +1773,7 @@ class UsersController extends Controller
         // Delete their photo?
         $users = Craft::$app->getUsers();
 
-        if (Craft::$app->getRequest()->getBodyParam('deletePhoto')) {
+        if ($this->request->getBodyParam('deletePhoto')) {
             $users->deleteUserPhoto($user);
             $user->photoId = null;
             Craft::$app->getElements()->saveElement($user);
@@ -1775,101 +1795,109 @@ class UsersController extends Controller
     }
 
     /**
+     * Saves new permissions on the user
+     *
      * @param User $user
-     * @throws ForbiddenHttpException if the user account doesn't have permission to assign the attempted permissions/groups
+     * @param User $currentUser
+     * @throws ForbiddenHttpException if the user account doesn't have permission to assign the attempted permissions
      */
-    private function _processUserGroupsPermissions(User $user)
+    private function _saveUserPermissions(User $user, User $currentUser)
     {
-        $userSession = Craft::$app->getUser();
-        if (($currentUser = $userSession->getIdentity()) === null) {
+        if (!$currentUser->can('assignUserPermissions')) {
             return;
         }
 
-        $request = Craft::$app->getRequest();
-        $edition = Craft::$app->getEdition();
+        // Save any user permissions
+        if ($user->admin) {
+            $permissions = [];
+        } else {
+            $permissions = $this->request->getBodyParam('permissions');
 
-        if ($edition === Craft::Pro && $currentUser->can('assignUserPermissions')) {
-            // Save any user permissions
-            if ($user->admin) {
+            if ($permissions === null) {
+                return;
+            }
+
+            // it will be an empty string if no permissions were assigned during user saving.
+            if ($permissions === '') {
                 $permissions = [];
-            } else {
-                $permissions = $request->getBodyParam('permissions');
-
-                // it will be an empty string if no permissions were assigned during user saving.
-                if ($permissions === '') {
-                    $permissions = [];
-                }
-            }
-
-            if (is_array($permissions)) {
-                // See if there are any new permissions in here
-                $hasNewPermissions = false;
-
-                foreach ($permissions as $permission) {
-                    if (!$user->can($permission)) {
-                        $hasNewPermissions = true;
-
-                        // Make sure the current user even has permission to grant it
-                        if (!$userSession->checkPermission($permission)) {
-                            throw new ForbiddenHttpException("Your account doesn't have permission to assign the {$permission} permission to a user.");
-                        }
-                    }
-                }
-
-                if ($hasNewPermissions) {
-                    $this->requireElevatedSession();
-                }
-
-                Craft::$app->getUserPermissions()->saveUserPermissions($user->id, $permissions);
             }
         }
 
-        // Only Craft Pro has user groups
-        if ($edition === Craft::Pro && $currentUser->can('assignUserGroups')) {
-            // Save any user groups
-            $groupIds = $request->getBodyParam('groups');
+        // See if there are any new permissions in here
+        $hasNewPermissions = false;
 
-            if ($groupIds !== null) {
-                if ($groupIds === '') {
-                    $groupIds = [];
+        foreach ($permissions as $permission) {
+            if (!$user->can($permission)) {
+                $hasNewPermissions = true;
+
+                // Make sure the current user even has permission to grant it
+                if (!$currentUser->can($permission)) {
+                    throw new ForbiddenHttpException("Your account doesn't have permission to assign the $permission permission to a user.");
                 }
-
-                $groupUidMap = [];
-                $allGroups = Craft::$app->getUserGroups()->getAllGroups();
-                foreach ($allGroups as $group) {
-                    $groupUidMap[$group->id] = $group->uid;
-                }
-
-                // See if there are any new groups in here
-                $oldGroupIds = [];
-
-                foreach ($user->getGroups() as $group) {
-                    $oldGroupIds[] = $group->id;
-                }
-
-                $hasNewGroups = false;
-
-                foreach ($groupIds as $groupId) {
-                    if (!in_array($groupId, $oldGroupIds, false)) {
-                        $hasNewGroups = true;
-
-                        // Make sure the current user is in the group or has permission to assign it
-                        if (
-                            !$currentUser->isInGroup($groupId) &&
-                            !$currentUser->can('assignUserGroup:' . $groupUidMap[$groupId])
-                        ) {
-                            throw new ForbiddenHttpException("Your account doesn't have permission to assign user group {$groupId} to a user.");
-                        }
-                    }
-                }
-
-                if ($hasNewGroups) {
-                    $this->requireElevatedSession();
-                }
-
-                Craft::$app->getUsers()->assignUserToGroups($user->id, $groupIds);
             }
         }
+
+        if ($hasNewPermissions) {
+            $this->requireElevatedSession();
+        }
+
+        Craft::$app->getUserPermissions()->saveUserPermissions($user->id, $permissions);
+    }
+
+    /**
+     * Saves user groups on a user.
+     *
+     * @param User $user
+     * @param User $currentUser
+     * @throws ForbiddenHttpException if the user account doesn't have permission to assign the attempted groups
+     */
+    private function _saveUserGroups(User $user, User $currentUser)
+    {
+        if (!$currentUser->can('assignUserGroups')) {
+            return;
+        }
+
+        // Save any user groups
+        $groupIds = $this->request->getBodyParam('groups');
+
+        if ($groupIds === null) {
+            return;
+        }
+
+        if ($groupIds === '') {
+            $groupIds = [];
+        }
+
+        /** @var UserGroup[] $allGroups */
+        $allGroups = ArrayHelper::index(Craft::$app->getUserGroups()->getAllGroups(), 'id');
+
+        // See if there are any new groups in here
+        $oldGroupIds = ArrayHelper::getColumn($user->getGroups(), 'id');
+        $hasNewGroups = false;
+        $newGroups = [];
+
+        foreach ($groupIds as $groupId) {
+            $group = $newGroups[] = $allGroups[$groupId];
+
+            if (!in_array($groupId, $oldGroupIds, false)) {
+                $hasNewGroups = true;
+
+                // Make sure the current user is in the group or has permission to assign it
+                if (
+                    !$currentUser->isInGroup($groupId) &&
+                    !$currentUser->can("assignUserGroup:{$group->uid}")
+                ) {
+                    throw new ForbiddenHttpException("Your account doesn't have permission to assign user group “{$group->name}” to a user.");
+                }
+            }
+        }
+
+        if ($hasNewGroups) {
+            $this->requireElevatedSession();
+        }
+
+        Craft::$app->getUsers()->assignUserToGroups($user->id, $groupIds);
+        $user->setGroups($newGroups);
     }
 
     /**
@@ -1877,9 +1905,8 @@ class UsersController extends Controller
      */
     private function _processTokenRequest()
     {
-        $request = Craft::$app->getRequest();
-        $uid = $request->getRequiredParam('id');
-        $code = $request->getRequiredParam('code');
+        $uid = $this->request->getRequiredParam('id');
+        $code = $this->request->getRequiredParam('code');
 
         /** @var User|null $user */
         $user = User::find()
@@ -1889,7 +1916,7 @@ class UsersController extends Controller
             ->one();
 
         if (!$user) {
-            return $this->_processInvalidToken($request);
+            return $this->_processInvalidToken();
         }
 
         // If someone is logged in and it's not this person, log them out
@@ -1907,7 +1934,7 @@ class UsersController extends Controller
         }
 
         if (!Craft::$app->getUsers()->isVerificationCodeValidForUser($user, $code)) {
-            return $this->_processInvalidToken($request);
+            return $this->_processInvalidToken();
         }
 
         // Fire an 'afterVerifyUser' event
@@ -1921,13 +1948,12 @@ class UsersController extends Controller
     }
 
     /**
-     * @param Request $request
      * @return Response
      * @throws HttpException if the verification code is invalid
      */
-    private function _processInvalidToken(Request $request): Response
+    private function _processInvalidToken(): Response
     {
-        if ($request->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             return $this->asErrorJson('InvalidVerificationCode');
         }
 
@@ -1940,7 +1966,7 @@ class UsersController extends Controller
         }
 
         // If the invalidUserTokenPath config setting is set, send them there
-        if (Craft::$app->getRequest()->getIsSiteRequest()) {
+        if ($this->request->getIsSiteRequest()) {
             $url = Craft::$app->getConfig()->getGeneral()->getInvalidUserTokenPath();
             return $this->redirect(UrlHelper::siteUrl($url));
         }
@@ -1958,7 +1984,7 @@ class UsersController extends Controller
     {
         $this->_maybeLoginUserAfterAccountActivation($user);
 
-        if (!Craft::$app->getRequest()->getAcceptsJson()) {
+        if (!$this->request->getAcceptsJson()) {
             return $this->_redirectUserToCp($user) ?? $this->_redirectUserAfterAccountActivation($user);
         }
 
@@ -1969,13 +1995,15 @@ class UsersController extends Controller
      * Possibly log a user in right after they were activated or reset their password, if Craft is configured to do so.
      *
      * @param User $user The user that was just activated or reset their password
+     * @return bool Whether the user was logged in
      */
-    private function _maybeLoginUserAfterAccountActivation(User $user)
+    private function _maybeLoginUserAfterAccountActivation(User $user): bool
     {
         $generalConfig = Craft::$app->getConfig()->getGeneral();
-        if ($generalConfig->autoLoginAfterAccountActivation === true) {
-            Craft::$app->getUser()->login($user, $generalConfig->userSessionDuration);
+        if (!$generalConfig->autoLoginAfterAccountActivation) {
+            return false;
         }
+        return Craft::$app->getUser()->login($user, $generalConfig->userSessionDuration);
     }
 
     /**
@@ -2029,7 +2057,7 @@ class UsersController extends Controller
      */
     private function _handleSendPasswordResetError(array $errors, string $loginName = null)
     {
-        if (Craft::$app->getRequest()->getAcceptsJson()) {
+        if ($this->request->getAcceptsJson()) {
             /** @noinspection CallableParameterUseCaseInTypeContextInspection */
             $errors = implode(', ', $errors);
 

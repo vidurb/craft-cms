@@ -292,7 +292,7 @@ interface ElementInterface extends ComponentInterface
     public static function fieldLayouts(string $source): array;
 
     /**
-     * Returns the available [element actions](https://docs.craftcms.com/v3/extend/element-action-types.html) for a
+     * Returns the available [element actions](https://craftcms.com/docs/3.x/extend/element-action-types.html) for a
      * given source.
      *
      * The actions can be represented by their fully qualified class name, a config array with the class name
@@ -915,12 +915,70 @@ interface ElementInterface extends ComponentInterface
     public function getAttributeStatus(string $attribute);
 
     /**
+     * Returns whether an attribute has changed since the element was first loaded.
+     *
+     * @param string $name
+     * @return bool
+     * @since 3.5.0
+     */
+    public function isAttributeDirty(string $name): bool;
+
+    /**
      * Returns a list of attribute names that have changed since the element was first loaded.
      *
      * @return string[]
      * @since 3.4.0
      */
     public function getDirtyAttributes(): array;
+
+    /**
+     * Sets the list of dirty attribute names.
+     *
+     * @param string[] $names
+     * @param bool $merge Whether these attributes should be merged with existing dirty attributes
+     * @see getDirtyAttributes()
+     * @since 3.5.0
+     */
+    public function setDirtyAttributes(array $names, bool $merge = true);
+
+    /**
+     * Returns whether the Title field should be shown as translatable in the UI.
+     *
+     * Note this method has no effect on whether titles will get copied over to other
+     * sites when the element is actually getting saved. That is determined by [[getTitleTranslationKey()]].
+     *
+     * @return bool
+     * @since 3.5.0
+     */
+    public function getIsTitleTranslatable(): bool;
+
+    /**
+     * Returns the description of the Title field’s translation support.
+     *
+     * @return string|null
+     * @since 3.5.0
+     */
+    public function getTitleTranslationDescription();
+
+    /**
+     * Returns the Title’s translation key.
+     *
+     * When saving an element on a multi-site Craft install, if `$propagate` is `true` for [[\craft\services\Elements::saveElement()]],
+     * then `getTitleTranslationKey()` will be called for each site the element should be propagated to.
+     * If the method returns the same value as it did for the initial site, then the initial site’s title will be copied over
+     * to the target site.
+     *
+     * @return string The translation key
+     */
+    public function getTitleTranslationKey(): string;
+
+    /**
+     * Returns whether a field is empty.
+     *
+     * @param string $handle
+     * @return bool
+     */
+    public function isFieldEmpty(string $handle): bool;
 
     /**
      * Returns the element’s normalized custom field values, indexed by their handles.

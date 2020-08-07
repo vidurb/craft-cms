@@ -26,6 +26,7 @@ use craft\helpers\Db;
 use craft\helpers\ElementHelper;
 use craft\helpers\FileHelper;
 use craft\helpers\Gql;
+use craft\helpers\Html;
 use craft\web\UploadedFile;
 use GraphQL\Type\Definition\Type;
 use yii\base\InvalidConfigException;
@@ -244,10 +245,10 @@ class Assets extends BaseRelationField
     /**
      * @inheritdoc
      */
-    public function getInputHtml($value, ElementInterface $element = null): string
+    protected function inputHtml($value, ElementInterface $element = null): string
     {
         try {
-            return parent::getInputHtml($value, $element);
+            return parent::inputHtml($value, $element);
         } catch (InvalidSubpathException $e) {
             return Html::tag('p', Craft::t('app', 'This field’s target subfolder path is invalid: {path}', [
                 'path' => '<code>' . $this->singleUploadLocationSubpath . '</code>'
@@ -480,9 +481,9 @@ class Assets extends BaseRelationField
                     $asset->tempFilePath = $tempPath;
                     $asset->filename = $file['filename'];
                     $asset->newFolderId = $targetFolderId;
-                    $asset->volumeId = $folder->volumeId;
-                    $asset->setScenario(Asset::SCENARIO_CREATE);
+                    $asset->setVolumeId($folder->volumeId);
                     $asset->avoidFilenameConflicts = true;
+                    $asset->setScenario(Asset::SCENARIO_CREATE);
                     Craft::$app->getElements()->saveElement($asset);
 
                     $assetIds[] = $asset->id;

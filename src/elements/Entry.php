@@ -9,11 +9,11 @@ namespace craft\elements;
 
 use Craft;
 use craft\base\Element;
+use craft\base\Field;
 use craft\behaviors\RevisionBehavior;
 use craft\controllers\ElementIndexesController;
 use craft\db\Query;
 use craft\db\Table;
-use craft\elements\actions\DeepDuplicate;
 use craft\elements\actions\Delete;
 use craft\elements\actions\Duplicate;
 use craft\elements\actions\Edit;
@@ -24,9 +24,11 @@ use craft\elements\actions\View;
 use craft\elements\db\ElementQuery;
 use craft\elements\db\ElementQueryInterface;
 use craft\elements\db\EntryQuery;
+use craft\errors\UnsupportedSiteException;
 use craft\helpers\ArrayHelper;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\Db;
+use craft\helpers\ElementHelper;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use craft\models\EntryType;
@@ -415,7 +417,10 @@ class Entry extends Element
                     $actions[] = Duplicate::class;
 
                     if ($section->type === Section::TYPE_STRUCTURE && $section->maxLevels != 1) {
-                        $actions[] = DeepDuplicate::class;
+                        $actions[] = [
+                            'type' => Duplicate::class,
+                            'deep' => true,
+                        ];
                     }
                 }
 
@@ -425,6 +430,13 @@ class Entry extends Element
                     $userSession->checkPermission('deletePeerEntries:' . $section->uid)
                 ) {
                     $actions[] = Delete::class;
+
+                    if ($section->type === Section::TYPE_STRUCTURE) {
+                        $actions[] = [
+                            'type' => Delete::class,
+                            'withDescendants' => true,
+                        ];
+                    }
                 }
             }
         }
@@ -735,21 +747,6 @@ class Entry extends Element
     /**
      * @inheritdoc
      */
-    public function attributeLabels()
-    {
-        $labels = parent::attributeLabels();
-
-        // Use the entry type's title label
-        if ($titleLabel = $this->getType()->titleLabel) {
-            $labels['title'] = Craft::t('site', $titleLabel);
-        }
-
-        return $labels;
-    }
-
-    /**
-     * @inheritdoc
-     */
     protected function defineRules(): array
     {
         $rules = parent::defineRules();
@@ -779,18 +776,33 @@ class Entry extends Element
             ($this->duplicateOf->id ?? $this->id) &&
             $section->propagationMethod === Section::PROPAGATION_METHOD_CUSTOM
         ) {
-            $currentSiteQuery = static::find()
-                ->id($this->duplicateOf->id ?? $this->id)
-                ->anyStatus()
-                ->siteId('*')
-                ->select('elements_sites.siteId')
-                ->indexBy('elements_sites.siteId');
-            if ($this->getIsDraft()) {
-                $currentSiteQuery->drafts();
-            } else if ($this->getIsRevision()) {
-                $currentSiteQuery->revisions();
+            if ($this->id) {
+                $currentSites = static::find()
+                    ->anyStatus()
+                    ->id($this->id)
+                    ->siteId('*')
+                    ->select('elements_sites.siteId')
+                    ->drafts($this->getIsDraft())
+                    ->revisions($this->getIsRevision())
+                    ->column();
+            } else {
+                $currentSites = [];
             }
-            $currentSites = $currentSiteQuery->column();
+
+            // If this is being duplicated from another element (e.g. a draft), include any sites the source element is saved to as well
+            if (!empty($this->duplicateOf->id)) {
+                array_push($currentSites, ...static::find()
+                    ->anyStatus()
+                    ->id($this->duplicateOf->id)
+                    ->siteId('*')
+                    ->select('elements_sites.siteId')
+                    ->drafts($this->duplicateOf->getIsDraft())
+                    ->revisions($this->duplicateOf->getIsRevision())
+                    ->column()
+                );
+            }
+
+            $currentSites = array_flip($currentSites);
         }
 
         foreach ($section->getSiteSettings() as $siteSettings) {
@@ -915,6 +927,31 @@ class Entry extends Element
     public function getRef()
     {
         return $this->getSection()->handle . '/' . $this->slug;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getIsTitleTranslatable(): bool
+    {
+        return ($this->getType()->titleTranslationMethod !== Field::TRANSLATION_METHOD_NONE);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getTitleTranslationDescription()
+    {
+        return ElementHelper::translationDescription($this->getType()->titleTranslationMethod);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getTitleTranslationKey(): string
+    {
+        $type = $this->getType();
+        return ElementHelper::translationKey($this, $type->titleTranslationMethod, $type->titleTranslationKeyFormat);
     }
 
     /**
@@ -1258,16 +1295,6 @@ EOD;
             }
         }
 
-        // Get the entry type
-        $entryType = $this->getType();
-
-        // Show the Title field?
-        if ($entryType->hasTitleField) {
-            $html .= $view->renderTemplate('entries/_titlefield', [
-                'entry' => $this
-            ]);
-        }
-
         // Render the custom fields
         $html .= parent::getEditorHtml();
 
@@ -1322,7 +1349,7 @@ EOD;
         // Verify that the section supports this site
         $sectionSiteSettings = $section->getSiteSettings();
         if (!isset($sectionSiteSettings[$this->siteId])) {
-            throw new Exception("The section '{$section->name}' is not enabled for the site '{$this->siteId}'");
+            throw new UnsupportedSiteException($this, $this->siteId, "The section '{$section->name}' is not enabled for the site '{$this->siteId}'");
         }
 
         // Make sure the entry has at least one revision if the section has versioning enabled

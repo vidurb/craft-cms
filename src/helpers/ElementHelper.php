@@ -11,6 +11,7 @@ use Craft;
 use craft\base\BlockElementInterface;
 use craft\base\Element;
 use craft\base\ElementInterface;
+use craft\base\Field;
 use craft\db\Query;
 use craft\db\Table;
 use craft\errors\OperationAbortedException;
@@ -57,7 +58,7 @@ class ElementHelper
      *
      * @param string $str The string
      * @param bool|null $ascii Whether the slug should be converted to ASCII. If null, it will depend on
-     * the <config:limitAutoSlugsToAscii> config setting value.
+     * the <config3:limitAutoSlugsToAscii> config setting value.
      * @param string|null $language The language to pull ASCII character mappings for, if needed
      * @return string
      * @since 3.5.0
@@ -418,6 +419,7 @@ class ElementHelper
             ->id($sourceId)
             ->siteId($anySite ? '*' : $element->siteId)
             ->preferSites([$element->siteId])
+            ->structureId($element->structureId)
             ->unique()
             ->anyStatus()
             ->ignorePlaceholders()
@@ -495,5 +497,56 @@ class ElementHelper
         }
 
         return null;
+    }
+
+    /**
+     * Returns the description of a field’s translation support.
+     *
+     * @param string $translationMethod
+     * @return string|null
+     * @since 3.5.0
+     */
+    public static function translationDescription(string $translationMethod)
+    {
+        switch ($translationMethod) {
+            case Field::TRANSLATION_METHOD_SITE:
+                return Craft::t('app', 'This field is translated for each site.');
+            case Field::TRANSLATION_METHOD_SITE_GROUP:
+                return Craft::t('app', 'This field is translated for each site group.');
+            case Field::TRANSLATION_METHOD_LANGUAGE:
+                return Craft::t('app', 'This field is translated for each language.');
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Returns the translation key for an element title or custom field, based on the given translation method
+     * and translation key format.
+     *
+     * @param ElementInterface $element
+     * @param string $translationMethod
+     * @param string|null $translationKeyFormat
+     * @return string
+     * @since 3.5.0
+     */
+    public static function translationKey(ElementInterface $element, string $translationMethod, string $translationKeyFormat = null): string
+    {
+        switch ($translationMethod) {
+            case Field::TRANSLATION_METHOD_NONE:
+                return '1';
+            case Field::TRANSLATION_METHOD_SITE:
+                return (string)$element->siteId;
+            case Field::TRANSLATION_METHOD_SITE_GROUP:
+                return (string)$element->getSite()->groupId;
+            case Field::TRANSLATION_METHOD_LANGUAGE:
+                return $element->getSite()->language;
+            default:
+                // Translate for each site if a translation key format wasn’t specified
+                if ($translationKeyFormat === null) {
+                    return (string)$element->siteId;
+                }
+                return Craft::$app->getView()->renderObjectTemplate($translationKeyFormat, $element);
+        }
     }
 }
