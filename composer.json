@@ -1,7 +1,7 @@
 {
   "name": "craftcms/cms",
   "description": "Craft CMS",
-  "version": "3.5.1",
+  "version": "3.6.0-alpha",
   "keywords": [
     "cms",
     "craftcms",
@@ -14,11 +14,11 @@
     "issues": "https://github.com/craftcms/cms/issues?state=open",
     "forum": "https://craftcms.stackexchange.com/",
     "source": "https://github.com/craftcms/cms",
-    "docs": "https://craftcms.com/docs/3.x/",
+    "docs": "https://docs.craftcms.com/v3/",
     "rss": "https://github.com/craftcms/cms/releases.atom"
   },
   "require": {
-    "php": ">=7.0.0",
+    "php": ">=7.2",
     "ext-curl": "*",
     "ext-dom": "*",
     "ext-json": "*",
@@ -27,7 +27,7 @@
     "ext-pcre": "*",
     "ext-pdo": "*",
     "ext-zip": "*",
-    "composer/composer": "1.10.10",
+    "composer/composer": "1.10.9",
     "craftcms/oauth2-craftid": "~1.0.0",
     "craftcms/plugin-installer": "~1.5.3",
     "craftcms/server-check": "~1.1.0",
@@ -44,10 +44,10 @@
     "seld/cli-prompt": "^1.0.3",
     "symfony/yaml": "^3.2|^4.0",
     "true/punycode": "^2.1.0",
-    "twig/twig": "~2.12.0",
+    "twig/twig": "~2.13.0",
     "voku/portable-utf8": "^5.4.28",
     "voku/stringy": "^6.2.2",
-    "webonyx/graphql-php": "^0.12.0",
+    "webonyx/graphql-php": "^14.0",
     "yii2tech/ar-softdelete": "^1.0.2",
     "yiisoft/yii2": "~2.0.36.0",
     "yiisoft/yii2-debug": "^2.1.0",
@@ -89,7 +89,7 @@
   "config": {
     "sort-packages": true,
     "platform": {
-      "php":  "7.1.30"
+      "php":  "7.2"
     }
   }
 }
