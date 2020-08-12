@@ -32,14 +32,14 @@ class DashboardAsset extends AssetBundle
      * @inheritdoc
      */
     public $css = [
-        'css/dashboard.css',
+        'css/Dashboard.css',
     ];
 
     /**
      * @inheritdoc
      */
     public $js = [
-        'dashboard.min.js',
+        'Dashboard.min.js',
     ];
 
     /**
