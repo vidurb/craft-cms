@@ -7,10 +7,7 @@ decache('../../../../webpack.base.asset.config');
 const BASE_CONFIG = require('../../../../webpack.base.asset.config');
 
 module.exports = merge(BASE_CONFIG,{
-    entry: ['./CraftSupportWidget.js'],
-    output: {
-        filename: 'CraftSupportWidget.min.js',
-    },
+    entry: {'CraftSupportWidget': './CraftSupportWidget.js'},
     plugins: [
         new CopyWebpackPlugin({
             patterns: [{
