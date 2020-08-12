@@ -26,6 +26,13 @@ module.exports = merge(DEFAULT_CONFIG, {
                     'sass-loader',
                 ],
             },
+            {
+                test: /\.(jpg|gif|png)$/,
+                loader: 'file-loader',
+                options: {
+                    name: 'images/[name].[ext]'
+                }
+            }
         ],
     },
     plugins: [
