@@ -27,7 +27,7 @@ module.exports = merge(DEFAULT_CONFIG, {
                 ],
             },
             {
-                test: /\.(jpg|gif|png)$/,
+                test: /\.(jpg|gif|png|svg)$/,
                 loader: 'file-loader',
                 options: {
                     name: 'images/[name].[ext]'
