@@ -6,5 +6,5 @@ decache('../../../../webpack.base.asset.config');
 const BASE_CONFIG = require('../../../../webpack.base.asset.config');
 
 module.exports = merge(BASE_CONFIG,{
-    entry: {'transforms': './transforms.js'},
+    entry: {'install': './install.js'},
 });
