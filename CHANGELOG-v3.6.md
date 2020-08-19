@@ -17,7 +17,8 @@
 - Added `craft\services\Gql::GRAPHQL_COMPLEXITY_SIMPLE_FIELD`.
 
 ### Changed
+- `craft\base\Model::setAttributes()` now normalizes date attributes into `DateTime` objects.
 - `craft\services\Gql::getValidationRules()` now has an `$isIntrospectionQuery` argument.
-- Craft now requires PHP 7.2 or later.
+- Craft now requires PHP 7.3 or later.
 - Updated Twig to 2.13.
 - Updated `webonyx/graphql-php` to 14.1.1.

@@ -1459,7 +1459,7 @@ abstract class Element extends Component implements ElementInterface
         $this->id = (int)$this->id ?: null;
         $this->draftId = (int)$this->draftId ?: null;
         $this->revisionId = (int)$this->revisionId ?: null;
-        $this->elementSiteId = (int)$this->elementSiteId ?: null;
+        $this->siteSettingsId = (int)$this->siteSettingsId ?: null;
         $this->fieldLayoutId = (int)$this->fieldLayoutId ?: null;
         $this->structureId = (int)$this->structureId ?: null;
         $this->contentId = (int)$this->contentId ?: null;
@@ -3089,7 +3089,7 @@ abstract class Element extends Component implements ElementInterface
             return '';
         }
 
-        $html = Html::hiddenInput('fieldLayoutId', $fieldLayout->id);
+        $html = '';
 
         foreach ($fieldLayout->getTabs() as $tab) {
             foreach ($tab->elements as $element) {
@@ -3098,6 +3098,8 @@ abstract class Element extends Component implements ElementInterface
                 }
             }
         }
+
+        $html .= Html::hiddenInput('fieldLayoutId', $fieldLayout->id);
 
         return $html;
     }
