@@ -9,6 +9,7 @@ const LIB_PATH = BASE_PATH + '/lib';
 const DEFAULT_CONFIG = require(path.join(__dirname, 'webpack.base.config'));
 
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const JSONMinifyPlugin = require('node-json-minify');
 
 let jsLibs = {
     'jquery-touch-events': '@benmajor/jquery-touch-events/src/jquery.mobile-events.js',
@@ -50,6 +51,9 @@ module.exports = merge(DEFAULT_CONFIG, {
                     return {
                         from: row,
                         to: '.',
+                        transform: function(content) {
+                            return JSONMinifyPlugin(content.toString());
+                        }
                     };
                 }
 

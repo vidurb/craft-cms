@@ -52,8 +52,8 @@ class D3Asset extends AssetBundle
 
         // Add locale definition JS variables
         $libPath = Craft::getAlias('@lib');
-        $js = 'window.d3FormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-format') . ';';
-        $js .= 'window.d3TimeFormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-time-format') . ';';
+        $js = 'window.d3FormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-format/locale') . ';';
+        $js .= 'window.d3TimeFormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-time-format/locale') . ';';
         $js .= 'window.d3Formats = ' . Json::encode(ChartHelper::formats()) . ';';
 
         $view->registerJs($js, View::POS_BEGIN);
