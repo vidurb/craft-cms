@@ -19,6 +19,11 @@ use craft\web\View;
 class D3Asset extends AssetBundle
 {
     /**
+     * @inheritdoc
+     */
+    public $sourcePath = __DIR__ . '/dist';
+
+    /**
      * @var array The default language format files to use
      */
     private $_defaultLanguages = [
@@ -32,16 +37,9 @@ class D3Asset extends AssetBundle
     /**
      * @inheritdoc
      */
-    public function init()
-    {
-        $this->sourcePath = '@lib/d3';
-
-        $this->js = [
+    public $js = [
             'd3.js',
-        ];
-
-        parent::init();
-    }
+    ];
 
     /**
      * @inheritdoc
@@ -50,10 +48,8 @@ class D3Asset extends AssetBundle
     {
         parent::registerAssetFiles($view);
 
-        // Add locale definition JS variables
-        $libPath = Craft::getAlias('@lib');
-        $js = 'window.d3FormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-format/locale') . ';';
-        $js .= 'window.d3TimeFormatLocaleDefinition = ' . $this->formatDef($libPath . '/d3-time-format/locale') . ';';
+        $js = 'window.d3FormatLocaleDefinition = ' . $this->formatDef($this->sourcePath . '/d3-format/locale') . ';';
+        $js .= 'window.d3TimeFormatLocaleDefinition = ' . $this->formatDef($this->sourcePath . '/d3-time-format/locale') . ';';
         $js .= 'window.d3Formats = ' . Json::encode(ChartHelper::formats()) . ';';
 
         $view->registerJs($js, View::POS_BEGIN);
