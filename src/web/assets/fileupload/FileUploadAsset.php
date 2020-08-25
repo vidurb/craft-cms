@@ -18,18 +18,12 @@ class FileUploadAsset extends AssetBundle
     /**
      * @inheritdoc
      */
-    public function init()
-    {
-        $this->sourcePath = '@lib/fileupload';
+    public $sourcePath = __DIR__ . '/dist';
 
-        $this->depends = [
-            JqueryUiAsset::class,
-        ];
-
-        $this->js = [
-            'jquery.fileupload.js',
-        ];
-
-        parent::init();
-    }
+    /**
+     * @inheritdoc
+     */
+    public $js = [
+        'jquery.fileupload.js',
+    ];
 }
