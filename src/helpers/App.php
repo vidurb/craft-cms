@@ -23,6 +23,10 @@ use craft\mail\transportadapters\Sendmail;
 use craft\models\MailSettings;
 use craft\services\ProjectConfig as ProjectConfigService;
 use craft\web\AssetManager;
+use craft\web\assets\inputmask\InputMaskAsset;
+use craft\web\assets\jquery\JqueryAsset;
+use craft\web\assets\pjax\PjaxAsset;
+use craft\web\assets\punycode\PunycodeAsset;
 use craft\web\Request;
 use craft\web\Request as WebRequest;
 use craft\web\Response as WebResponse;
@@ -398,6 +402,20 @@ class App
             'fileMode' => $generalConfig->defaultFileMode,
             'dirMode' => $generalConfig->defaultDirMode,
             'appendTimestamp' => true,
+            'bundles' => [
+                'yii\web\JqueryAsset' => [
+                    'class' => JqueryAsset::class,
+                ],
+                'yii\validators\PunycodeAsset' => [
+                    'class' => PunycodeAsset::class,
+                ],
+                'yii\widgets\MaskedInputAsset' => [
+                    'class' => InputMaskAsset::class,
+                ],
+                'yii\widgets\PjaxAsset' => [
+                    'class' => PjaxAsset::class,
+                ]
+            ]
         ];
     }
 
