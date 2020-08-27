@@ -8,6 +8,7 @@ const path = require('path');
 
 // Plugins
 const ManifestPlugin = require('webpack-manifest-plugin');
+const ParentModule = require('parent-module');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const TerserWebpackPlugin = require('terser-webpack-plugin');
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
@@ -25,7 +26,7 @@ class CraftWebpackConfig {
         ];
 
         // Settings
-        this.basePath = module.parent.path;
+        this.basePath = path.dirname(ParentModule());
         this.srcPath = this.basePath + '/src';
         this.distPath = this.basePath + '/dist';
         this.jsFilename = '[name].min.js';
