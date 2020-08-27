@@ -1,23 +1,22 @@
-/*jshint esversion: 6 */
+/* jshint esversion: 6 */
 /* globals module, require */
-const merge = require('webpack-merge');
-const decache = require('decache');
-decache('../../../../webpack.base.asset.config');
-const BASE_CONFIG = require('../../../../webpack.base.asset.config');
+const CraftWebpackConfig = require('../../../../CraftWebpackConfig');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const NODE_MODULES = __dirname + '/../../../../node_modules/';
 
-module.exports = merge(BASE_CONFIG, {
-    entry: {'entry': './entry.js'},
-    plugins: [
-        new CopyWebpackPlugin({
-            patterns: [
-                {
-                    context: './locale',
-                    from: '*',
-                    to: '.'
-                },
-            ],
-        }),
-    ]
+module.exports = new CraftWebpackConfig({
+    config: {
+        entry: {'entry': './entry.js'},
+        plugins: [
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        context: './locale',
+                        from: '*',
+                        to: '.'
+                    },
+                ],
+            }),
+        ]
+    }
 });

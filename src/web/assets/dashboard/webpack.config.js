@@ -1,11 +1,9 @@
-/*jshint esversion: 6 */
+/* jshint esversion: 6 */
 /* globals module, require */
-const fs = require('fs');
-const merge = require('webpack-merge');
-const decache = require('decache');
-decache('../../../../webpack.base.asset.config');
-const BASE_CONFIG = require('../../../../webpack.base.asset.config');
+const CraftWebpackConfig = require('../../../../CraftWebpackConfig');
 
-module.exports = merge(BASE_CONFIG, {
-    entry: {'Dashboard': './dashboard.js'},
+module.exports = new CraftWebpackConfig({
+    config: {
+        entry: {'Dashboard': './dashboard.js'},
+    }
 });

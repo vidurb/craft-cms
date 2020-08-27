@@ -1,13 +1,12 @@
-/*jshint esversion: 6 */
+/* jshint esversion: 6 */
 /* globals module, require */
-const merge = require('webpack-merge');
-const decache = require('decache');
-decache('../../../../webpack.base.asset.config');
-const BASE_CONFIG = require('../../../../webpack.base.asset.config');
+const CraftWebpackConfig = require('../../../../CraftWebpackConfig');
 
-module.exports = merge(BASE_CONFIG,{
-    entry: {
-        'AccountSettingsForm': './AccountSettingsForm.js',
-        'profile': './profile.js'
-    },
+module.exports = new CraftWebpackConfig({
+    config: {
+        entry: {
+            'AccountSettingsForm': './AccountSettingsForm.js',
+            'profile': './profile.js'
+        },
+    }
 });
