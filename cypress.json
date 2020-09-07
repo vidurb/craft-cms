@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://craft.test/admin",
+  "lighthouse": {
+    "performance": 0,
+    "accessibility": 90,
+    "best-practices": 0,
+    "seo": 0,
+    "pwa": 0
+  }
+}
