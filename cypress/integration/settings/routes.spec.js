@@ -1,6 +1,6 @@
 describe('Settings → Routes', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Routes should pass the audits", function () {

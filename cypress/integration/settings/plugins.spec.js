@@ -1,6 +1,6 @@
 describe('Settings → Plugins', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Plugins should pass the audits", function () {

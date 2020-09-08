@@ -1,6 +1,6 @@
 describe('Settings → Tags', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Tag Groups should pass the audits", function () {

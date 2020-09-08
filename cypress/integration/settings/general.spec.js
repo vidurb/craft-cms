@@ -1,6 +1,6 @@
 describe('Settings → General', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("General should pass the audits", function () {

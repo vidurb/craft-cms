@@ -1,6 +1,6 @@
 describe('Categories', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it('shows the Categories index', () => {

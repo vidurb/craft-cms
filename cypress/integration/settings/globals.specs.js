@@ -1,6 +1,6 @@
 describe('Settings → Globals', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Globals should pass the audits", function () {

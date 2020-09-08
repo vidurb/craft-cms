@@ -1,6 +1,6 @@
 describe('Settings → Sections', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Sections should pass the audits", function () {

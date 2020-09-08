@@ -1,6 +1,6 @@
 describe('Entries', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it('shows the Entries index', () => {

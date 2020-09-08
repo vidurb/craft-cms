@@ -1,6 +1,6 @@
 describe('Settings → Fields', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Fields should pass the audits", function () {

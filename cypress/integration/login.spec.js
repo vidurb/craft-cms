@@ -5,7 +5,7 @@ describe('Login', () => {
     })
 
     it('Log into the Control Panel', () => {
-        cy.login('admin', 'password')
+        cy.login()
         cy.visit('/dashboard')
         cy.get('h1').contains("Dashboard")
     })

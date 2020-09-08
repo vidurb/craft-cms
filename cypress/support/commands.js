@@ -25,6 +25,14 @@
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
 
 Cypress.Commands.add("login", (loginName, password) => {
+    if (!loginName) {
+        loginName = Cypress.env('CP_LOGIN')
+    }
+
+    if (!password) {
+        password = Cypress.env('CP_PASSWORD')
+    }
+
     cy.request('POST', 'https://craft.test/index.php?p=admin/actions/users/login', {
         loginName,
         password

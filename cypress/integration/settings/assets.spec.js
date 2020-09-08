@@ -1,6 +1,6 @@
 describe('Settings → Assets', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Assets should pass the audits", function () {

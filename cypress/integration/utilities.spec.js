@@ -1,6 +1,6 @@
 describe('Utilities', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Updates should pass the audits", function () {

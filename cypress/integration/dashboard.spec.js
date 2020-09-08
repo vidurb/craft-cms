@@ -1,6 +1,6 @@
 describe('Dashboard', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it('Shows the dashboard', () => {

@@ -1,6 +1,6 @@
 describe('Settings → Email', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Email should pass the audits", function () {

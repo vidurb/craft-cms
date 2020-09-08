@@ -1,6 +1,6 @@
 describe('Settings → Categories', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Category Groups should pass the audits", function () {

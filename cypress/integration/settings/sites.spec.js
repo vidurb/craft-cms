@@ -1,6 +1,6 @@
 describe('Settings → Sites', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("Sites should pass the audits", function () {

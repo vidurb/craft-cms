@@ -1,6 +1,6 @@
 describe('Settings → Users', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it("User Groups should pass the audits", function () {

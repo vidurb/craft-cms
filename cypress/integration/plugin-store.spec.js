@@ -1,6 +1,6 @@
 describe('Plugin Store', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it('shows the Plugin Store index', () => {

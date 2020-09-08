@@ -1,5 +1,9 @@
 {
   "baseUrl": "https://craft.test/admin",
+  "env": {
+    "CP_LOGIN": "admin",
+    "CP_PASSWORD": "password"
+  },
   "lighthouse": {
     "performance": 0,
     "accessibility": 90,

@@ -1,6 +1,6 @@
 describe('Assets', () => {
     beforeEach(function() {
-        cy.login('admin', 'password')
+        cy.login()
     })
 
     it('shows the Assets index', () => {
