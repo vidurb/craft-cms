@@ -1,6 +1,30 @@
 # Release Notes for Craft CMS 3.x
 
-## Unrelease
+## Unreleased
+
+### Added
+- Edit Field pages now have a “Save and continue editing” Save menu option, and the <kbd>Ctrl</kbd>/<kbd>Command</kbd> + <kbd>S</kbd> keyboard shortcut is now assigned to that. ([#2872](https://github.com/craftcms/cms/issues/2872))
+- Edit Section pages now have “Settings” and “Entry Types” tabs, providing quick access to edit a section’s entry types. ([#6826](https://github.com/craftcms/cms/issues/6826))
+- New sections’ “Save” button is now labeled “Save and edit entry types”, and the browser is redirected to the section’s entry type index after save.
+- Added `craft\fields\data\OptionData::$valid`.
+- Added `craft\gql\ElementQueryConditionBuilder::setResolveInfo()`.
+- Added `craft\web\Request::$generalConfig`.
+- Added `craft\web\Request::$sites`.
+
+### Changed
+- `craft\helpers\Gql::getFieldNameWithAlias()` now has a `$context` argument to allow sharing context over a single GraphQL API call.
+- The `_layouts/cp.html` control panel template now defines a `submitButton` block.
+
+### Fixed
+- Fixed a bug where all fields were showing as searchable on the Settings → Fields page on MySQL installs. ([#6808](https://github.com/craftcms/cms/issues/6808))
+- Fixed a bug where Dropdown, Radio Buttons, Checkboxes, and Multi-select fields weren’t getting validation errors if an invalid value was posted to them. ([#6535](https://github.com/craftcms/cms/issues/6535))
+- Fixed a bug where Craft wasn’t handling site requests properly if it was installed in a subfolder and the site’s base URL contained additional URI segments.
+- Fixed a bug where Dropdown, Radio Buttons, Checkboxes, and Multi-select fields that had values that were empty, numeric or contained special characters, couldn't be used in GraphQL mutations. ([#6535](https://github.com/craftcms/cms/issues/6535))
+- Fixed a bug where eager loading elements’ children across multiple levels wasn’t working. ([#6820](https://github.com/craftcms/cms/issues/6820))
+- Fixed a bug where aliased fields would sometimes not be assigned correctly when using GraphQL API. ([#6811](https://github.com/craftcms/cms/issues/6811)))
+- Removed `vue`, `vue-router` and `vuex` Plugin Store dependencies as they are already handled by Craft. ([#6732](https://github.com/craftcms/cms/pull/6732), [#6815](https://github.com/craftcms/cms/pull/6815))
+
+## 3.5.9 - 2020-09-08
 
 ### Added
 - Added support for childless GraphQL schema components.
@@ -21,6 +45,12 @@
 - Fixed an error that could occur when updating to Craft 3.5 if the `migrations` table had rows with broken `pluginId` foreign keys.
 - Fixed an error that could occur when deleting a Matrix block type, if it contained nested block-based fields that had existing content. ([#6780](https://github.com/craftcms/cms/issues/6780))
 - Fixed a bug where the `_includes/forms/select.html` template wasn’t always setting the `data-target-prefix` attribute if `toggle` was set.
+- Fixed a bug where Number fields could return incorrect values via GraphQL. ([#6743](https://github.com/craftcms/cms/issues/6743))
+- Fixe a bug where duplicating elements from their edit pages could result in the selected site’s content getting propagated to all other sites for the duplicated element. ([#6804](https://github.com/craftcms/cms/issues/6804))
+- Fixed a 400 error that could occur when a section’s Template setting was blank.
+- Fixed a bug where GraphQL queries for entry drafts weren’t getting invalidated when drafts were saved or deleted. ([#6792](https://github.com/craftcms/cms/issues/6792))
+- Fixed an error that could occur when running the `project-config/apply` command, if there was a Single section that was enabled for a site that was disabled on the front end. ([#6799](https://github.com/craftcms/cms/issues/6799))
+- Fixed a bug where the `tests/setup` command wasn’t working. ([#6790](https://github.com/craftcms/cms/issues/6790))
 
 ## 3.5.8 - 2020-09-01
 
@@ -2811,7 +2841,7 @@
 - Fixed a bug where Assets fields set to restrict uploads to a single folder could have empty selector modals. ([#4522](https://github.com/craftcms/cms/issues/4522))
 - Fixed an error that could occur if a template was accessing the deprecated `locale` property of an element query, but `siteId` wasn’t set to an integer. ([#4531](https://github.com/craftcms/cms/issues/4531))
 - Fixed a bug where users without the “Publish live changes” permission for a section weren’t able to create new entries. ([#4528](https://github.com/craftcms/cms/issues/4529))
-- Fixed a PHP error that could occur when uploading files to Assets fields on the front-end. ([#4382](https://github.com/craftcms/cms/issues/4382))
+- Fixed a PHP error that could occur when uploading files to Assets fields on the front end. ([#4382](https://github.com/craftcms/cms/issues/4382))
 - Fixed a bug where elements listed in a Structure view could show descendant toggles even if they had no descendants. ([#4504](https://github.com/craftcms/cms/issues/4504))
 - Fixed a backwards compatibility issue. ([#4523](https://github.com/craftcms/cms/issues/4523))
 
@@ -3417,7 +3447,7 @@
 
 ### Fixed
 - Fixed a bug where Control Panel content areas weren’t getting their bottom padding applied in Firefox. ([#3874](https://github.com/craftcms/cms/issues/3874))
-- Fixed a PHP error that occurred on the front-end if two routes defined in Settings → Routes had the same URI pattern. ([#3922](https://github.com/craftcms/cms/issues/3922))
+- Fixed a PHP error that occurred on the front end if two routes defined in Settings → Routes had the same URI pattern. ([#3922](https://github.com/craftcms/cms/issues/3922))
 - Fixed a bug where Craft wasn’t always preselecting the correct tab on Control Panel pages if the tab name contained non-ASCII characters. ([#3923](https://github.com/craftcms/cms/issues/3923))
 - Fixed a bug where the `--uid` option on `resave/*` console commands wasn’t working. ([#3941](https://github.com/craftcms/cms/issues/3941))
 - Fixed a SQL error that could occur when running `resave/*` console commands.
@@ -4799,7 +4829,7 @@
 - Fixed a bug where it was not possible to pass a `--table-prefix` argument to the `setup/db-creds` command. ([#2791](https://github.com/craftcms/cms/pull/2791))
 - Fixed an error that occurred for users without permission to perform updates, if available update info wasn’t cached.
 - Fixed an error that occurred when `craft\elements\Asset::sources()` was called in a console request. ([#2798](https://github.com/craftcms/cms/issues/2798))
-- Fixed JavaScript errors that could occur on the front-end after deleting Matrix blocks. ([#2799](https://github.com/craftcms/cms/pull/2799))
+- Fixed JavaScript errors that could occur on the front end after deleting Matrix blocks. ([#2799](https://github.com/craftcms/cms/pull/2799))
 
 ## 3.0.3.1 - 2018-04-18
 
