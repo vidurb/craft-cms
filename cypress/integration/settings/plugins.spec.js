@@ -5,6 +5,6 @@ describe('Settings → Plugins', () => {
 
     it("Plugins should pass the audits", function () {
         cy.visit('/settings/plugins')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

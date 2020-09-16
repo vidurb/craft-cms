@@ -10,6 +10,6 @@ describe('Categories', () => {
 
     it("should pass the audits", function () {
         cy.visit('/categories')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

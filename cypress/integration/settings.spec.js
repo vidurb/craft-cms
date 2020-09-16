@@ -5,6 +5,6 @@ describe('Settings', () => {
 
     it("Settings should pass the audits", function () {
         cy.visit('/settings')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

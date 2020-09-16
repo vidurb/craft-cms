@@ -10,6 +10,6 @@ describe('Dashboard', () => {
 
     it("should pass the audits", function () {
         cy.visit('/dashboard')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

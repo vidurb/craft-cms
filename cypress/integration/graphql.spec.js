@@ -10,21 +10,21 @@ describe('GraphQL', () => {
 
     it("GraphQL Schemas should pass the audits", function () {
         cy.visit('/graphql/schemas')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new GraphQL Schema should pass the audits", function () {
         cy.visit('/graphql/schemas/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("GraphQL Tokens should pass the audits", function () {
         cy.visit('/graphql/tokens')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new GraphQL token should pass the audits", function () {
         cy.visit('/graphql/tokens/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

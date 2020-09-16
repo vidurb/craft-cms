@@ -38,3 +38,11 @@ Cypress.Commands.add("login", (loginName, password) => {
         password
     })
 })
+
+Cypress.Commands.add("runAudit", () => {
+    cy.lighthouse()
+    cy.pa11y({
+        threshold: 20,
+        standard: 'WCAG2A',
+    });
+})

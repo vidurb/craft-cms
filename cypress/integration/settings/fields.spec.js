@@ -5,11 +5,11 @@ describe('Settings → Fields', () => {
 
     it("Fields should pass the audits", function () {
         cy.visit('/settings/fields')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new field should pass the audits", function () {
         cy.visit('/settings/fields/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

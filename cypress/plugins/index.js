@@ -37,6 +37,6 @@ module.exports = (on, config) => {
 
     on("task", {
         lighthouse: lighthouse(), // calling the function is important
-        // pa11y: pa11y(), // calling the function is important
+        pa11y: pa11y(), // calling the function is important
     });
 }

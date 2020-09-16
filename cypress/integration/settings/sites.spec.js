@@ -5,11 +5,11 @@ describe('Settings → Sites', () => {
 
     it("Sites should pass the audits", function () {
         cy.visit('/settings/sites')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new site should pass the audits", function () {
         cy.visit('/settings/sites/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

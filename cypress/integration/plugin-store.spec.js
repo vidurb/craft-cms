@@ -10,6 +10,6 @@ describe('Plugin Store', () => {
 
     it("should pass the audits", function () {
         cy.visit('/plugin-store')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

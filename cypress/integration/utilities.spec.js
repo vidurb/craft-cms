@@ -5,56 +5,56 @@ describe('Utilities', () => {
 
     it("Updates should pass the audits", function () {
         cy.visit('/utilities/updates')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("System Report should pass the audits", function () {
         cy.visit('/utilities/system-report')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Project Config should pass the audits", function () {
         cy.visit('/utilities/project-config')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("PHP Info should pass the audits", function () {
         cy.visit('/utilities/php-info')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("System Messages should pass the audits", function () {
         cy.visit('/utilities/system-messages')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Queue Manager should pass the audits", function () {
         cy.visit('/utilities/queue-manager')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Caches should pass the audits", function () {
         cy.visit('/utilities/clear-caches')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Deprecation Warnings should pass the audits", function () {
         cy.visit('/utilities/deprecation-errors')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Database Backup should pass the audits", function () {
         cy.visit('/utilities/db-backup')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Find and Replace Backup should pass the audits", function () {
         cy.visit('/utilities/find-replace')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Migrations should pass the audits", function () {
         cy.visit('/utilities/migrations')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

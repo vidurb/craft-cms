@@ -5,11 +5,11 @@ describe('Settings → Tags', () => {
 
     it("Tag Groups should pass the audits", function () {
         cy.visit('/settings/tags')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new category group should pass the audits", function () {
         cy.visit('/settings/tags/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

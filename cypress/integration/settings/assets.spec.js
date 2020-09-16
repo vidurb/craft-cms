@@ -5,16 +5,16 @@ describe('Settings → Assets', () => {
 
     it("Assets should pass the audits", function () {
         cy.visit('/settings/assets')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Image Transforms should pass the audits", function () {
         cy.visit('/settings/assets/transforms')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Settings should pass the audits", function () {
         cy.visit('/settings/assets/settings')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

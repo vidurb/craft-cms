@@ -5,6 +5,6 @@ describe('Settings → Email', () => {
 
     it("Email should pass the audits", function () {
         cy.visit('/settings/email')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })

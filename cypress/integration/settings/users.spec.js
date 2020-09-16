@@ -5,21 +5,21 @@ describe('Settings → Users', () => {
 
     it("User Groups should pass the audits", function () {
         cy.visit('/settings/users')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Create a new user group should pass the audits", function () {
         cy.visit('/settings/users/groups/new')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Fields should pass the audits", function () {
         cy.visit('/settings/users/fields')
-        cy.lighthouse()
+        cy.runAudit()
     })
 
     it("Settings should pass the audits", function () {
         cy.visit('/settings/users/settings')
-        cy.lighthouse()
+        cy.runAudit()
     })
 })
