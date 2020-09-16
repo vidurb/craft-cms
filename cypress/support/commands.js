@@ -40,7 +40,7 @@ Cypress.Commands.add("login", (loginName, password) => {
 })
 
 Cypress.Commands.add("runAudit", () => {
-    cy.lighthouse()
+    // cy.lighthouse()
     cy.pa11y({
         runners: ['htmlcs'],
         threshold: 20,
