@@ -1179,8 +1179,14 @@ class Gql extends Component
         }
 
         try {
-            $cacheKey = self::CACHE_TAG . "::$schema->uid::" . md5($query) . '::' . serialize($rootValue) . '::' .
-                serialize($context) . '::' . serialize($variables) . ($operationName ? "::$operationName" : '');
+            $cacheKey = self::CACHE_TAG .
+                '::' . Craft::$app->getSites()->getCurrentSite()->id .
+                '::' . $schema->uid .
+                '::' . md5($query) .
+                '::' . serialize($rootValue) .
+                '::' . serialize($context) .
+                '::' . serialize($variables) .
+                ($operationName ? "::$operationName" : '');
         } catch (\Throwable $e) {
             Craft::$app->getErrorHandler()->logException($e);
             $cacheKey = null;
