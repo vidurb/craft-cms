@@ -1,6 +1,6 @@
 describe('Login', () => {
     it("should pass the audits", function () {
-        cy.visit('/entries')
+        cy.visit('/')
         cy.lighthouse()
     })
 
