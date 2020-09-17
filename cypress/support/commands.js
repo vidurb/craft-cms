@@ -44,6 +44,6 @@ Cypress.Commands.add("runAudit", () => {
     cy.pa11y({
         runners: ['htmlcs'],
         threshold: 20,
-        standard: 'WCAG2A',
+        standard: 'WCAG2AA',
     });
 })
