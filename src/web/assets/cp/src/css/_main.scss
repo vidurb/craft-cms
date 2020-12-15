@@ -400,6 +400,14 @@ li.sel a {
 }
 
 /* toggles */
+button.toggle {
+  appearance: none;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
 .toggle:before,
 a.fieldtoggle:before {
   @include angle(right);
@@ -968,6 +976,7 @@ ul.icons {
   margin-bottom: 14px;
   min-height: 34px;
 
+  &.flex,
   .flex {
     align-items: flex-start;
   }
@@ -1832,7 +1841,6 @@ table {
       font-weight: bold;
       @include alignleft;
       vertical-align: top;
-      color: $mediumTextColor;
     }
   }
 
@@ -2793,9 +2801,7 @@ table.editable {
   & + .btn.add {
     display: block;
     width: 100%;
-    border-radius: 0 0 $mediumBorderRadius $mediumBorderRadius;
     border: 1px dashed $mediumHairlineColor;
-    border-top-width: 0;
     background-color: transparent;
     box-shadow: none;
 
@@ -2803,6 +2809,11 @@ table.editable {
       border-style: solid;
       border-color: $blue600;
     }
+  }
+
+  &:not(.hidden) + .btn.add {
+    border-top-width: 0;
+    border-radius: 0 0 $mediumBorderRadius $mediumBorderRadius;
   }
 }
 
@@ -2931,6 +2942,7 @@ ul.tree,
   position: absolute;
   left: 20%;
   width: 60%;
+  z-index: 1000;
 }
 
 .progressbar-inner {
@@ -3104,6 +3116,10 @@ ul.tree,
           @include icon;
           content: 'plus';
           color: $lightTextColor;
+        }
+
+        .input {
+          width: 100%;
         }
       }
 
@@ -3537,6 +3553,7 @@ ul.tree,
   align-items: center;
   height: 190px;
   background-color: $grey900;
+  cursor: pointer;
 
   &.loading {
     &:after {
@@ -3571,10 +3588,6 @@ ul.tree,
     }
   }
 
-  &.editable {
-    cursor: pointer;
-  }
-
   .buttons {
     opacity: 0;
     position: absolute;
@@ -3595,21 +3608,21 @@ ul.tree,
           transition: opacity linear 100ms, backdrop-filter linear 100ms;
         }
       }
+
+      &:hover {
+        background-color: $grey500;
+
+        @supports (backdrop-filter: blur(10px)) {
+          & {
+            background-color: transparentize($grey500, 0.3);
+          }
+        }
+      }
     }
   }
 
   &:hover .buttons {
     opacity: 1;
-  }
-
-  &:not(.editable) .buttons .btn:hover {
-    background-color: $grey500;
-
-    @supports (backdrop-filter: blur(10px)) {
-      & {
-        background-color: transparentize($grey500, 0.3);
-      }
-    }
   }
 }
 
@@ -4558,6 +4571,8 @@ fieldset {
   .password {
     flex: 1;
     border: none;
+    background: transparent;
+    box-shadow: none;
   }
 
   .password-toggle {
